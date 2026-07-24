@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/joinname177/dify-agent-api/deploy/config.schema.json",
+  "title": "Dify Agent API environment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "DIFY_AGENT_ENVIRONMENT", "DIFY_AGENT_DATABASE_URL", "DIFY_AGENT_BOOTSTRAP_ADMIN_EMAIL",
+    "DIFY_AGENT_BOOTSTRAP_ADMIN_PASSWORD", "DIFY_AGENT_CORS_ALLOWED_ORIGINS", "DIFY_AGENT_RELEASE_ID",
+    "DIFY_AGENT_BUILD_COMMIT"
+  ],
+  "properties": {
+    "DIFY_AGENT_ENVIRONMENT": { "enum": ["development", "test", "staging", "production"] },
+    "DIFY_AGENT_HTTP_ADDRESS": { "type": "string", "default": ":8080" },
+    "DIFY_AGENT_DATABASE_URL": { "type": "string", "minLength": 1 },
+    "DIFY_AGENT_DATABASE_MIN_CONNS": { "type": "integer", "minimum": 0, "default": 2 },
+    "DIFY_AGENT_DATABASE_MAX_CONNS": { "type": "integer", "minimum": 1, "default": 10 },
+    "DIFY_AGENT_BOOTSTRAP_ADMIN_EMAIL": { "type": "string", "format": "email" },
+    "DIFY_AGENT_BOOTSTRAP_ADMIN_PASSWORD": { "type": "string", "minLength": 12 },
+    "DIFY_AGENT_ACCESS_TOKEN_TTL": { "type": "string", "default": "15m" },
+    "DIFY_AGENT_REFRESH_TOKEN_TTL": { "type": "string", "default": "168h" },
+    "DIFY_AGENT_OTEL_EXPORTER_OTLP_ENDPOINT": { "type": "string", "format": "uri" },
+    "DIFY_AGENT_CORS_ALLOWED_ORIGINS": { "type": "string", "minLength": 1 },
+    "DIFY_AGENT_RELEASE_ID": { "type": "string", "minLength": 1 },
+    "DIFY_AGENT_BUILD_COMMIT": { "type": "string", "minLength": 1 },
+    "DIFY_AGENT_HTTP_READ_TIMEOUT": { "type": "string", "default": "5s" },
+    "DIFY_AGENT_HTTP_WRITE_TIMEOUT": { "type": "string", "default": "15s" },
+    "DIFY_AGENT_HTTP_IDLE_TIMEOUT": { "type": "string", "default": "60s" },
+    "DIFY_AGENT_HTTP_SHUTDOWN_TIMEOUT": { "type": "string", "default": "10s" },
+    "DIFY_AGENT_REQUEST_TIMEOUT": { "type": "string", "default": "10s" },
+    "DIFY_AGENT_REQUEST_BODY_LIMIT": { "type": "integer", "minimum": 1, "default": 1048576 },
+    "DIFY_AGENT_RATE_LIMIT_RPS": { "type": "number", "exclusiveMinimum": 0, "default": 100 },
+    "DIFY_AGENT_RATE_LIMIT_BURST": { "type": "integer", "minimum": 1, "default": 200 }
+  }
+}

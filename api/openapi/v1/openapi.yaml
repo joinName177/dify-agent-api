@@ -1,0 +1,352 @@
+openapi: 3.0.3
+info:
+  title: Dify Agent API
+  version: 1.1.0
+  description: Versioned contract for the Dify Agent backend service.
+servers:
+  - url: /api/v1
+paths:
+  /livez:
+    get:
+      operationId: getLivez
+      summary: Report process liveness
+      tags: [Operations]
+      responses:
+        "200":
+          description: The process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /readyz:
+    get:
+      operationId: getReadyz
+      summary: Report dependency readiness
+      tags: [Operations]
+      responses:
+        "200":
+          description: All required dependencies are ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: A required dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /version:
+    get:
+      operationId: getVersion
+      summary: Report release and contract versions
+      tags: [Operations]
+      responses:
+        "200":
+          description: Non-sensitive build information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /auth/register:
+    post:
+      operationId: registerUser
+      summary: Register a local user and create a session
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered and session created.
+          headers:
+            Set-Cookie:
+              description: Rotating HttpOnly refresh token cookie.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /auth/login:
+    post:
+      operationId: loginUser
+      summary: Authenticate a local user and create a session
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Credentials accepted and session created.
+          headers:
+            Set-Cookie:
+              description: Rotating HttpOnly refresh token cookie.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /auth/refresh:
+    post:
+      operationId: refreshSession
+      summary: Rotate the refresh token and issue a new access token
+      tags: [Authentication]
+      responses:
+        "200":
+          description: Session rotated.
+          headers:
+            Set-Cookie:
+              description: Rotated HttpOnly refresh token cookie.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      summary: Revoke the current refresh session
+      tags: [Authentication]
+      responses:
+        "204":
+          description: Session revoked or already absent.
+          headers:
+            Set-Cookie:
+              description: Expired refresh token cookie.
+              schema:
+                type: string
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      summary: Return the authenticated user
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "500":
+          $ref: "#/components/responses/InternalError"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: Short-lived opaque access token kept only in browser memory.
+  responses:
+    InternalError:
+      description: An unexpected server error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: The request conflicts with existing state.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: The request is syntactically valid but contains invalid values.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthenticated:
+      description: Authentication credentials are missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimited:
+      description: Too many requests were submitted.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password, displayName]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 80
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+    AuthResponse:
+      type: object
+      additionalProperties: false
+      required: [accessToken, expiresAt, user]
+      properties:
+        accessToken:
+          type: string
+          minLength: 40
+        expiresAt:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/UserResponse"
+    UserResponse:
+      type: object
+      additionalProperties: false
+      required: [id, email, displayName, role, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [user, super_admin]
+        createdAt:
+          type: string
+          format: date-time
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, code, message]
+      properties:
+        field:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Z][A-Z0-9_]+$"
+        message:
+          type: string
+        requestId:
+          type: string
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldError"
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    ReadinessResponse:
+      type: object
+      additionalProperties: false
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        checks:
+          type: object
+          additionalProperties: false
+          required: [database, migrations]
+          properties:
+            database:
+              type: string
+              enum: [ok]
+            migrations:
+              type: string
+              enum: [ok]
+    VersionResponse:
+      type: object
+      additionalProperties: false
+      required: [releaseId, buildCommit, contractId, openapiDigest]
+      properties:
+        releaseId:
+          type: string
+        buildCommit:
+          type: string
+        contractId:
+          type: string
+        openapiDigest:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+
