@@ -6,13 +6,14 @@ import (
 )
 
 type ErrorResponse struct {
-	Code      string `json:"code"`
+	Code      int    `json:"code"`
+	ErrorCode string `json:"errorCode"`
 	Message   string `json:"message"`
 	RequestID string `json:"requestId"`
 }
 
-func WriteError(w http.ResponseWriter, r *http.Request, status int, code, safeMessage string) {
-	WriteJSON(w, status, ErrorResponse{Code: code, Message: safeMessage, RequestID: RequestIDFromContext(r.Context())})
+func WriteError(w http.ResponseWriter, r *http.Request, status int, errorCode, safeMessage string) {
+	WriteJSON(w, status, ErrorResponse{Code: status, ErrorCode: errorCode, Message: safeMessage, RequestID: RequestIDFromContext(r.Context())})
 }
 
 func WriteJSON(w http.ResponseWriter, status int, value any) {

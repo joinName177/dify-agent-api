@@ -108,26 +108,27 @@ Handler 只负责：解析已生成的请求类型、调用已认证身份上下
 
 ```json
 {
-  "code": "USER_REGISTERED",
+  "code": 201,
   "message": "User registered.",
   "requestId": "01J...",
   "data": {}
 }
 ```
 
-`code` 是客户端映射本地化提示和遥测的稳定机器码；`message` 只提供安全的默认说明；`requestId` 用于关联日志；具体资源只位于 `data`。需要返回响应信封的操作不得使用无响应体的 `204`。
+`code` 必须等于实际 HTTP 状态码；`message` 只提供安全的默认说明；`requestId` 用于关联日志；具体资源只位于 `data`。需要返回响应信封的操作不得使用无响应体的 `204`。
 
 所有错误使用稳定结构：
 
 ```json
 {
-  "code": "AGENT_NOT_FOUND",
+  "code": 404,
+  "errorCode": "AGENT_NOT_FOUND",
   "message": "Requested agent was not found.",
   "requestId": "01J..."
 }
 ```
 
-`message` 必须安全且可本地化；不返回 SQL、JWT、堆栈、内部 URL、租户信息或下游原文错误。
+`errorCode` 是客户端映射本地化提示和遥测的稳定机器码。`message` 必须安全且可本地化；不返回 SQL、JWT、堆栈、内部 URL、租户信息或下游原文错误。
 
 ### 5.3 Middleware 顺序
 
@@ -208,6 +209,8 @@ gofmt check + go vet + staticcheck + govulncheck + unit
 ```
 
 禁止 `t.Skip`、无界 retry、长期 baseline、扩大 coverage exclude 或用 mock 替代数据库迁移验证。`go test -race ./...` 是服务端共享状态和并发变更的必经门禁。
+
+Staticcheck 覆盖全部人工维护 Go package。`generated/` 由锁定生成器的零漂移检查治理，并继续参与格式化、编译、`go vet`、单元测试和 race detector；不得为修复生成器静态检查误报而手改生成文件。
 
 ## 11. 本地开发与交付
 

@@ -61,7 +61,7 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) { h.use
 
 func (h *Handler) GetLivez(w http.ResponseWriter, r *http.Request) {
 	response := openapiv1.HealthResponse{
-		Code:      openapiv1.HEALTHY,
+		Code:      openapiv1.HealthResponseCodeN200,
 		Message:   "Service is healthy.",
 		RequestId: platformhttp.RequestIDFromContext(r.Context()),
 	}
@@ -79,7 +79,7 @@ func (h *Handler) GetReadyz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response := openapiv1.ReadinessResponse{
-		Code:      openapiv1.READY,
+		Code:      openapiv1.ReadinessResponseCodeN200,
 		Message:   "Service is ready.",
 		RequestId: platformhttp.RequestIDFromContext(r.Context()),
 	}
@@ -91,7 +91,7 @@ func (h *Handler) GetReadyz(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	response := openapiv1.VersionResponse{
-		Code:      openapiv1.VERSIONRETRIEVED,
+		Code:      openapiv1.VersionResponseCodeN200,
 		Message:   "Version retrieved.",
 		RequestId: platformhttp.RequestIDFromContext(r.Context()),
 	}

@@ -301,8 +301,8 @@ components:
       required: [code, message, requestId, data]
       properties:
         code:
-          type: string
-          enum: [USER_REGISTERED, AUTHENTICATED, SESSION_REFRESHED]
+          type: integer
+          enum: [200, 201]
         message:
           type: string
           minLength: 1
@@ -330,8 +330,8 @@ components:
       required: [code, message, requestId, data]
       properties:
         code:
-          type: string
-          enum: [CURRENT_USER_RETRIEVED]
+          type: integer
+          enum: [200]
         message:
           type: string
           minLength: 1
@@ -346,8 +346,8 @@ components:
       required: [code, message, requestId, data]
       properties:
         code:
-          type: string
-          enum: [SESSION_REVOKED]
+          type: integer
+          enum: [200]
         message:
           type: string
           minLength: 1
@@ -394,9 +394,13 @@ components:
     ErrorResponse:
       type: object
       additionalProperties: false
-      required: [code, message, requestId]
+      required: [code, errorCode, message, requestId]
       properties:
         code:
+          type: integer
+          minimum: 100
+          maximum: 599
+        errorCode:
           type: string
           pattern: "^[A-Z][A-Z0-9_]+$"
         message:
@@ -415,8 +419,8 @@ components:
       required: [code, message, requestId, data]
       properties:
         code:
-          type: string
-          enum: [HEALTHY]
+          type: integer
+          enum: [200]
         message:
           type: string
           minLength: 1
@@ -437,8 +441,8 @@ components:
       required: [code, message, requestId, data]
       properties:
         code:
-          type: string
-          enum: [READY]
+          type: integer
+          enum: [200]
         message:
           type: string
           minLength: 1
@@ -470,8 +474,8 @@ components:
       required: [code, message, requestId, data]
       properties:
         code:
-          type: string
-          enum: [VERSION_RETRIEVED]
+          type: integer
+          enum: [200]
         message:
           type: string
           minLength: 1

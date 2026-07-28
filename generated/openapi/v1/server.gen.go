@@ -26,19 +26,16 @@ const (
 
 // Defines values for AuthResponseCode.
 const (
-	AUTHENTICATED    AuthResponseCode = "AUTHENTICATED"
-	SESSIONREFRESHED AuthResponseCode = "SESSION_REFRESHED"
-	USERREGISTERED   AuthResponseCode = "USER_REGISTERED"
+	AuthResponseCodeN200 AuthResponseCode = 200
+	AuthResponseCodeN201 AuthResponseCode = 201
 )
 
 // Valid indicates whether the value is a known member of the AuthResponseCode enum.
 func (e AuthResponseCode) Valid() bool {
 	switch e {
-	case AUTHENTICATED:
+	case AuthResponseCodeN200:
 		return true
-	case SESSIONREFRESHED:
-		return true
-	case USERREGISTERED:
+	case AuthResponseCodeN201:
 		return true
 	default:
 		return false
@@ -47,13 +44,13 @@ func (e AuthResponseCode) Valid() bool {
 
 // Defines values for HealthResponseCode.
 const (
-	HEALTHY HealthResponseCode = "HEALTHY"
+	HealthResponseCodeN200 HealthResponseCode = 200
 )
 
 // Valid indicates whether the value is a known member of the HealthResponseCode enum.
 func (e HealthResponseCode) Valid() bool {
 	switch e {
-	case HEALTHY:
+	case HealthResponseCodeN200:
 		return true
 	default:
 		return false
@@ -77,13 +74,13 @@ func (e HealthResponseDataStatus) Valid() bool {
 
 // Defines values for LogoutResponseCode.
 const (
-	SESSIONREVOKED LogoutResponseCode = "SESSION_REVOKED"
+	LogoutResponseCodeN200 LogoutResponseCode = 200
 )
 
 // Valid indicates whether the value is a known member of the LogoutResponseCode enum.
 func (e LogoutResponseCode) Valid() bool {
 	switch e {
-	case SESSIONREVOKED:
+	case LogoutResponseCodeN200:
 		return true
 	default:
 		return false
@@ -92,13 +89,13 @@ func (e LogoutResponseCode) Valid() bool {
 
 // Defines values for ReadinessResponseCode.
 const (
-	READY ReadinessResponseCode = "READY"
+	ReadinessResponseCodeN200 ReadinessResponseCode = 200
 )
 
 // Valid indicates whether the value is a known member of the ReadinessResponseCode enum.
 func (e ReadinessResponseCode) Valid() bool {
 	switch e {
-	case READY:
+	case ReadinessResponseCodeN200:
 		return true
 	default:
 		return false
@@ -170,13 +167,13 @@ func (e UserDataRole) Valid() bool {
 
 // Defines values for UserResponseCode.
 const (
-	CURRENTUSERRETRIEVED UserResponseCode = "CURRENT_USER_RETRIEVED"
+	UserResponseCodeN200 UserResponseCode = 200
 )
 
 // Valid indicates whether the value is a known member of the UserResponseCode enum.
 func (e UserResponseCode) Valid() bool {
 	switch e {
-	case CURRENTUSERRETRIEVED:
+	case UserResponseCodeN200:
 		return true
 	default:
 		return false
@@ -185,13 +182,13 @@ func (e UserResponseCode) Valid() bool {
 
 // Defines values for VersionResponseCode.
 const (
-	VERSIONRETRIEVED VersionResponseCode = "VERSION_RETRIEVED"
+	VersionResponseCodeN200 VersionResponseCode = 200
 )
 
 // Valid indicates whether the value is a known member of the VersionResponseCode enum.
 func (e VersionResponseCode) Valid() bool {
 	switch e {
-	case VERSIONRETRIEVED:
+	case VersionResponseCodeN200:
 		return true
 	default:
 		return false
@@ -207,7 +204,7 @@ type AuthResponse struct {
 }
 
 // AuthResponseCode defines model for AuthResponse.Code.
-type AuthResponseCode string
+type AuthResponseCode int
 
 // AuthSessionData defines model for AuthSessionData.
 type AuthSessionData struct {
@@ -218,7 +215,8 @@ type AuthSessionData struct {
 
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse struct {
-	Code      string        `json:"code"`
+	Code      int           `json:"code"`
+	ErrorCode string        `json:"errorCode"`
 	Errors    *[]FieldError `json:"errors,omitempty"`
 	Message   string        `json:"message"`
 	RequestId string        `json:"requestId"`
@@ -242,7 +240,7 @@ type HealthResponse struct {
 }
 
 // HealthResponseCode defines model for HealthResponse.Code.
-type HealthResponseCode string
+type HealthResponseCode int
 
 // HealthResponseDataStatus defines model for HealthResponse.Data.Status.
 type HealthResponseDataStatus string
@@ -264,7 +262,7 @@ type LogoutResponse struct {
 }
 
 // LogoutResponseCode defines model for LogoutResponse.Code.
-type LogoutResponseCode string
+type LogoutResponseCode int
 
 // ReadinessResponse defines model for ReadinessResponse.
 type ReadinessResponse struct {
@@ -281,7 +279,7 @@ type ReadinessResponse struct {
 }
 
 // ReadinessResponseCode defines model for ReadinessResponse.Code.
-type ReadinessResponseCode string
+type ReadinessResponseCode int
 
 // ReadinessResponseDataChecksDatabase defines model for ReadinessResponse.Data.Checks.Database.
 type ReadinessResponseDataChecksDatabase string
@@ -320,7 +318,7 @@ type UserResponse struct {
 }
 
 // UserResponseCode defines model for UserResponse.Code.
-type UserResponseCode string
+type UserResponseCode int
 
 // VersionResponse defines model for VersionResponse.
 type VersionResponse struct {
@@ -336,7 +334,7 @@ type VersionResponse struct {
 }
 
 // VersionResponseCode defines model for VersionResponse.Code.
-type VersionResponseCode string
+type VersionResponseCode int
 
 // BadRequest defines model for BadRequest.
 type BadRequest = ErrorResponse
@@ -719,38 +717,37 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

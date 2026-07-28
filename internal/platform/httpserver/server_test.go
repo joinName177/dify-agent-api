@@ -30,9 +30,9 @@ func testConfig() config.Config {
 func TestOperationalEndpoints(t *testing.T) {
 	handler := New(testConfig(), fakeReadiness{}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil)
 	for _, test := range []struct{ path, code, body string }{
-		{"/api/v1/livez", `"code":"HEALTHY"`, `"status":"ok"`},
-		{"/api/v1/readyz", `"code":"READY"`, `"database":"ok"`},
-		{"/api/v1/version", `"code":"VERSION_RETRIEVED"`, `"releaseId":"test"`},
+		{"/api/v1/livez", `"code":200`, `"status":"ok"`},
+		{"/api/v1/readyz", `"code":200`, `"database":"ok"`},
+		{"/api/v1/version", `"code":200`, `"releaseId":"test"`},
 	} {
 		req := httptest.NewRequest(http.MethodGet, test.path, nil)
 		res := httptest.NewRecorder()
@@ -58,8 +58,8 @@ func TestUnknownRoutesAndMethodsUseStandardErrors(t *testing.T) {
 		method, path, code string
 		status             int
 	}{
-		{http.MethodGet, "/api/v1/missing", `"code":"ROUTE_NOT_FOUND"`, http.StatusNotFound},
-		{http.MethodDelete, "/api/v1/livez", `"code":"METHOD_NOT_ALLOWED"`, http.StatusMethodNotAllowed},
+		{http.MethodGet, "/api/v1/missing", `"errorCode":"ROUTE_NOT_FOUND"`, http.StatusNotFound},
+		{http.MethodDelete, "/api/v1/livez", `"errorCode":"METHOD_NOT_ALLOWED"`, http.StatusMethodNotAllowed},
 	} {
 		res := httptest.NewRecorder()
 		handler.ServeHTTP(res, httptest.NewRequest(test.method, test.path, nil))
@@ -79,7 +79,7 @@ func TestReadinessDoesNotLeakDependencyError(t *testing.T) {
 	if strings.Contains(res.Body.String(), "secret-value") {
 		t.Fatalf("dependency error leaked: %s", res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), `"code":"DATABASE_UNAVAILABLE"`) {
+	if !strings.Contains(res.Body.String(), `"code":503`) || !strings.Contains(res.Body.String(), `"errorCode":"DATABASE_UNAVAILABLE"`) {
 		t.Fatalf("stable error code missing: %s", res.Body.String())
 	}
 }

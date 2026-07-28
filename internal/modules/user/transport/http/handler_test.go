@@ -43,7 +43,7 @@ func TestRegisterSetsServerManagedRefreshCookie(t *testing.T) {
 	if response.Code != http.StatusCreated {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
-	if !strings.Contains(response.Body.String(), `"code":"USER_REGISTERED"`) ||
+	if !strings.Contains(response.Body.String(), `"code":201`) ||
 		!strings.Contains(response.Body.String(), `"data":{"accessToken"`) {
 		t.Fatalf("standard success response missing: %s", response.Body.String())
 	}
@@ -74,7 +74,9 @@ func TestLoginUsesStableInvalidCredentialsCode(t *testing.T) {
 
 	handler.LoginUser(response, request)
 
-	if response.Code != http.StatusUnauthorized || !strings.Contains(response.Body.String(), `"code":"INVALID_CREDENTIALS"`) {
+	if response.Code != http.StatusUnauthorized ||
+		!strings.Contains(response.Body.String(), `"code":401`) ||
+		!strings.Contains(response.Body.String(), `"errorCode":"INVALID_CREDENTIALS"`) {
 		t.Fatalf("unexpected response: %d %s", response.Code, response.Body.String())
 	}
 }
@@ -100,7 +102,7 @@ func TestLogoutReturnsStandardIdempotentResponse(t *testing.T) {
 	handler.LogoutUser(response, request)
 
 	if response.Code != http.StatusOK ||
-		!strings.Contains(response.Body.String(), `"code":"SESSION_REVOKED"`) ||
+		!strings.Contains(response.Body.String(), `"code":200`) ||
 		!strings.Contains(response.Body.String(), `"data":{"revoked":true}`) {
 		t.Fatalf("unexpected logout response: %d %s", response.Code, response.Body.String())
 	}
