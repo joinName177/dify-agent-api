@@ -24,74 +24,140 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
-// Defines values for HealthResponseStatus.
+// Defines values for AuthResponseCode.
 const (
-	HealthResponseStatusOk HealthResponseStatus = "ok"
+	AUTHENTICATED    AuthResponseCode = "AUTHENTICATED"
+	SESSIONREFRESHED AuthResponseCode = "SESSION_REFRESHED"
+	USERREGISTERED   AuthResponseCode = "USER_REGISTERED"
 )
 
-// Valid indicates whether the value is a known member of the HealthResponseStatus enum.
-func (e HealthResponseStatus) Valid() bool {
+// Valid indicates whether the value is a known member of the AuthResponseCode enum.
+func (e AuthResponseCode) Valid() bool {
 	switch e {
-	case HealthResponseStatusOk:
+	case AUTHENTICATED:
+		return true
+	case SESSIONREFRESHED:
+		return true
+	case USERREGISTERED:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for ReadinessResponseChecksDatabase.
+// Defines values for HealthResponseCode.
 const (
-	ReadinessResponseChecksDatabaseOk ReadinessResponseChecksDatabase = "ok"
+	HEALTHY HealthResponseCode = "HEALTHY"
 )
 
-// Valid indicates whether the value is a known member of the ReadinessResponseChecksDatabase enum.
-func (e ReadinessResponseChecksDatabase) Valid() bool {
+// Valid indicates whether the value is a known member of the HealthResponseCode enum.
+func (e HealthResponseCode) Valid() bool {
 	switch e {
-	case ReadinessResponseChecksDatabaseOk:
+	case HEALTHY:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for ReadinessResponseChecksMigrations.
+// Defines values for HealthResponseDataStatus.
 const (
-	ReadinessResponseChecksMigrationsOk ReadinessResponseChecksMigrations = "ok"
+	HealthResponseDataStatusOk HealthResponseDataStatus = "ok"
 )
 
-// Valid indicates whether the value is a known member of the ReadinessResponseChecksMigrations enum.
-func (e ReadinessResponseChecksMigrations) Valid() bool {
+// Valid indicates whether the value is a known member of the HealthResponseDataStatus enum.
+func (e HealthResponseDataStatus) Valid() bool {
 	switch e {
-	case ReadinessResponseChecksMigrationsOk:
+	case HealthResponseDataStatusOk:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for ReadinessResponseStatus.
+// Defines values for LogoutResponseCode.
 const (
-	ReadinessResponseStatusOk ReadinessResponseStatus = "ok"
+	SESSIONREVOKED LogoutResponseCode = "SESSION_REVOKED"
 )
 
-// Valid indicates whether the value is a known member of the ReadinessResponseStatus enum.
-func (e ReadinessResponseStatus) Valid() bool {
+// Valid indicates whether the value is a known member of the LogoutResponseCode enum.
+func (e LogoutResponseCode) Valid() bool {
 	switch e {
-	case ReadinessResponseStatusOk:
+	case SESSIONREVOKED:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for UserResponseRole.
+// Defines values for ReadinessResponseCode.
 const (
-	SuperAdmin UserResponseRole = "super_admin"
-	User       UserResponseRole = "user"
+	READY ReadinessResponseCode = "READY"
 )
 
-// Valid indicates whether the value is a known member of the UserResponseRole enum.
-func (e UserResponseRole) Valid() bool {
+// Valid indicates whether the value is a known member of the ReadinessResponseCode enum.
+func (e ReadinessResponseCode) Valid() bool {
+	switch e {
+	case READY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadinessResponseDataChecksDatabase.
+const (
+	ReadinessResponseDataChecksDatabaseOk ReadinessResponseDataChecksDatabase = "ok"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessResponseDataChecksDatabase enum.
+func (e ReadinessResponseDataChecksDatabase) Valid() bool {
+	switch e {
+	case ReadinessResponseDataChecksDatabaseOk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadinessResponseDataChecksMigrations.
+const (
+	ReadinessResponseDataChecksMigrationsOk ReadinessResponseDataChecksMigrations = "ok"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessResponseDataChecksMigrations enum.
+func (e ReadinessResponseDataChecksMigrations) Valid() bool {
+	switch e {
+	case ReadinessResponseDataChecksMigrationsOk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadinessResponseDataStatus.
+const (
+	ReadinessResponseDataStatusOk ReadinessResponseDataStatus = "ok"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessResponseDataStatus enum.
+func (e ReadinessResponseDataStatus) Valid() bool {
+	switch e {
+	case ReadinessResponseDataStatusOk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserDataRole.
+const (
+	SuperAdmin UserDataRole = "super_admin"
+	User       UserDataRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the UserDataRole enum.
+func (e UserDataRole) Valid() bool {
 	switch e {
 	case SuperAdmin:
 		return true
@@ -102,11 +168,52 @@ func (e UserResponseRole) Valid() bool {
 	}
 }
 
+// Defines values for UserResponseCode.
+const (
+	CURRENTUSERRETRIEVED UserResponseCode = "CURRENT_USER_RETRIEVED"
+)
+
+// Valid indicates whether the value is a known member of the UserResponseCode enum.
+func (e UserResponseCode) Valid() bool {
+	switch e {
+	case CURRENTUSERRETRIEVED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VersionResponseCode.
+const (
+	VERSIONRETRIEVED VersionResponseCode = "VERSION_RETRIEVED"
+)
+
+// Valid indicates whether the value is a known member of the VersionResponseCode enum.
+func (e VersionResponseCode) Valid() bool {
+	switch e {
+	case VERSIONRETRIEVED:
+		return true
+	default:
+		return false
+	}
+}
+
 // AuthResponse defines model for AuthResponse.
 type AuthResponse struct {
-	AccessToken string       `json:"accessToken"`
-	ExpiresAt   time.Time    `json:"expiresAt"`
-	User        UserResponse `json:"user"`
+	Code      AuthResponseCode `json:"code"`
+	Data      AuthSessionData  `json:"data"`
+	Message   string           `json:"message"`
+	RequestId string           `json:"requestId"`
+}
+
+// AuthResponseCode defines model for AuthResponse.Code.
+type AuthResponseCode string
+
+// AuthSessionData defines model for AuthSessionData.
+type AuthSessionData struct {
+	AccessToken string    `json:"accessToken"`
+	ExpiresAt   time.Time `json:"expiresAt"`
+	User        UserData  `json:"user"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -126,11 +233,19 @@ type FieldError struct {
 
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
-	Status HealthResponseStatus `json:"status"`
+	Code HealthResponseCode `json:"code"`
+	Data struct {
+		Status HealthResponseDataStatus `json:"status"`
+	} `json:"data"`
+	Message   string `json:"message"`
+	RequestId string `json:"requestId"`
 }
 
-// HealthResponseStatus defines model for HealthResponse.Status.
-type HealthResponseStatus string
+// HealthResponseCode defines model for HealthResponse.Code.
+type HealthResponseCode string
+
+// HealthResponseDataStatus defines model for HealthResponse.Data.Status.
+type HealthResponseDataStatus string
 
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
@@ -138,23 +253,44 @@ type LoginRequest struct {
 	Password *string             `json:"password,omitempty"`
 }
 
-// ReadinessResponse defines model for ReadinessResponse.
-type ReadinessResponse struct {
-	Checks struct {
-		Database   ReadinessResponseChecksDatabase   `json:"database"`
-		Migrations ReadinessResponseChecksMigrations `json:"migrations"`
-	} `json:"checks"`
-	Status ReadinessResponseStatus `json:"status"`
+// LogoutResponse defines model for LogoutResponse.
+type LogoutResponse struct {
+	Code LogoutResponseCode `json:"code"`
+	Data struct {
+		Revoked bool `json:"revoked"`
+	} `json:"data"`
+	Message   string `json:"message"`
+	RequestId string `json:"requestId"`
 }
 
-// ReadinessResponseChecksDatabase defines model for ReadinessResponse.Checks.Database.
-type ReadinessResponseChecksDatabase string
+// LogoutResponseCode defines model for LogoutResponse.Code.
+type LogoutResponseCode string
 
-// ReadinessResponseChecksMigrations defines model for ReadinessResponse.Checks.Migrations.
-type ReadinessResponseChecksMigrations string
+// ReadinessResponse defines model for ReadinessResponse.
+type ReadinessResponse struct {
+	Code ReadinessResponseCode `json:"code"`
+	Data struct {
+		Checks struct {
+			Database   ReadinessResponseDataChecksDatabase   `json:"database"`
+			Migrations ReadinessResponseDataChecksMigrations `json:"migrations"`
+		} `json:"checks"`
+		Status ReadinessResponseDataStatus `json:"status"`
+	} `json:"data"`
+	Message   string `json:"message"`
+	RequestId string `json:"requestId"`
+}
 
-// ReadinessResponseStatus defines model for ReadinessResponse.Status.
-type ReadinessResponseStatus string
+// ReadinessResponseCode defines model for ReadinessResponse.Code.
+type ReadinessResponseCode string
+
+// ReadinessResponseDataChecksDatabase defines model for ReadinessResponse.Data.Checks.Database.
+type ReadinessResponseDataChecksDatabase string
+
+// ReadinessResponseDataChecksMigrations defines model for ReadinessResponse.Data.Checks.Migrations.
+type ReadinessResponseDataChecksMigrations string
+
+// ReadinessResponseDataStatus defines model for ReadinessResponse.Data.Status.
+type ReadinessResponseDataStatus string
 
 // RegisterRequest defines model for RegisterRequest.
 type RegisterRequest struct {
@@ -163,28 +299,53 @@ type RegisterRequest struct {
 	Password    *string             `json:"password,omitempty"`
 }
 
-// UserResponse defines model for UserResponse.
-type UserResponse struct {
+// UserData defines model for UserData.
+type UserData struct {
 	CreatedAt   time.Time           `json:"createdAt"`
 	DisplayName string              `json:"displayName"`
 	Email       openapi_types.Email `json:"email"`
 	Id          openapi_types.UUID  `json:"id"`
-	Role        UserResponseRole    `json:"role"`
+	Role        UserDataRole        `json:"role"`
 }
 
-// UserResponseRole defines model for UserResponse.Role.
-type UserResponseRole string
+// UserDataRole defines model for UserData.Role.
+type UserDataRole string
+
+// UserResponse defines model for UserResponse.
+type UserResponse struct {
+	Code      UserResponseCode `json:"code"`
+	Data      UserData         `json:"data"`
+	Message   string           `json:"message"`
+	RequestId string           `json:"requestId"`
+}
+
+// UserResponseCode defines model for UserResponse.Code.
+type UserResponseCode string
 
 // VersionResponse defines model for VersionResponse.
 type VersionResponse struct {
-	BuildCommit   string `json:"buildCommit"`
-	ContractId    string `json:"contractId"`
-	OpenapiDigest string `json:"openapiDigest"`
-	ReleaseId     string `json:"releaseId"`
+	Code VersionResponseCode `json:"code"`
+	Data struct {
+		BuildCommit   string `json:"buildCommit"`
+		ContractId    string `json:"contractId"`
+		OpenapiDigest string `json:"openapiDigest"`
+		ReleaseId     string `json:"releaseId"`
+	} `json:"data"`
+	Message   string `json:"message"`
+	RequestId string `json:"requestId"`
 }
+
+// VersionResponseCode defines model for VersionResponse.Code.
+type VersionResponseCode string
+
+// BadRequest defines model for BadRequest.
+type BadRequest = ErrorResponse
 
 // Conflict defines model for Conflict.
 type Conflict = ErrorResponse
+
+// Forbidden defines model for Forbidden.
+type Forbidden = ErrorResponse
 
 // InternalError defines model for InternalError.
 type InternalError = ErrorResponse
@@ -194,6 +355,9 @@ type RateLimited = ErrorResponse
 
 // Unauthenticated defines model for Unauthenticated.
 type Unauthenticated = ErrorResponse
+
+// UnsupportedMediaType defines model for UnsupportedMediaType.
+type UnsupportedMediaType = ErrorResponse
 
 // ValidationError defines model for ValidationError.
 type ValidationError = ErrorResponse
@@ -555,33 +719,38 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"H4sIAAAAAAAC/+Raa0/jPBb+K5b3/bbphcus3um3DoQBLQujtCDtoi5y49PWQ2JnbKeQRf3vKztJm6Sh",
+	"pVDaQe8XRFv7XB4/5+KTPGNfhJHgwLXCnWcsQUWCK7AfvhHqwa8YlDaffME1cPsviaKA+UQzwVs/leDm",
+	"O+VPICTmvz8kjHAH/621EN1Kf1UtV0ohvUwJns1mDqagfMkiIwx3cH8CSKZK0VDQBDGFQhKMhAyBNvHM",
+	"wSeCjwLm78kmP9Ou0CPTEwRPTGnGx0hposHadybkkFEKfD8GCsnGjCMhEaPANdMWQi40ikCGTOsMxguu",
+	"QXISWOG7M7XLUczhKQJfA0UK5BQkArMLCd+PpczM84iGSxYyDXSHOAqBQsKTHEyFHkECUvEwB87BEyAU",
+	"pI0PD7RMGt2RBlk2QicR4A5mXMMYpNE0c/ANJ7GemCPxyU696i7UMsGRL8ESgwQKEQkoZEoZBhvG8CkJ",
+	"WHoAN1zFUSSkBvovoIz0rU97SwNUQMriWAGqKrYG3xrT7Xc7pnTRVqaQSrgmvoE7CBJkAUXD2GYOTRhX",
+	"OcrmpxhUExuJmTJjizmuuTpjOaXMaCLBDykikJqZ7DwigQIHR4WvjL/UbgEeh7hzh296rnfvud8ven3X",
+	"c0+xg7s3/XP3qn9x0u3bzz2317u4vrr33DPP7Z27p3jg5PRVWjI+NtBSotfCZMzugVJM8FOzfObgEJQi",
+	"Y2tRyPgl8LGe4M5BjYIMvgu6dm22mEkTQXepxwtNRUmZ2Qt/xPAn+Nqoq9q6GcrE90GpvnhIU3zB3ON2",
+	"jW/wFDEJqmtpaOoY0bhjbIOGZqGxeWlLrNKMsgrvGwUyBboCSdG8ovZMbB0eZYq/jXMR0aag4A7+7123",
+	"8Z+B+dNufL0f/P2POhdtyrcCmIZQrfP2jEFA07iezaURKUmyf6LVIVqw921wLlk+MhJrfyl4v9qHVIRT",
+	"9aXO/nMgwdbS0Lnbveyf/3tlatlAvGm1YlVUIB5qZFecz3bVOfvb5qlLMWa80IJvABKEhAWljJN+4+CQ",
+	"POVmH345rnEyIko9Cpn6uFh8cPins9JnBz9KpuGaBwnuaBlDFYTcgrmCF3wWsd4S8xbl7fb6n2uK2wZq",
+	"JEzFAxSjcShEAIQvnXu+8lPRzgNCGQeltnQKnts93Vr0+xPwH9SGm4yeIVGwNmkYho+lbRM3zjBzJSUh",
+	"dQC/K4M5OQSfjFNjpjTIt2UzylQUkOSKhFDJSn+2nXWe7iAVHr4/FzolJ+sgnHd8GwaMBHPf3KT/rMC9",
+	"AaJLSxktrYtjRuuWSRGUgtO2qg5WcQTyntCQ8fXxYSXnhhRdyMQ7BShewndLGe/kxvPcq/59dgHrexfu",
+	"7TvuVote/zeO8FuQ5kK1JQRvXS+r3K8BbwNFw5gF9ESEIdO13DbXdEn8DLaln0UEnETslI2zLFa895DG",
+	"qN34Onj+x/Gs9tIjIQCioFb0UuOQL3VKJpcMrJrziSqCqYLgx5LppGdYnh0OEAnSXM8Xn87y3CEi8is2",
+	"4svjl95ESN0I2BQoSpeg9AqMtLkDoweINBI8SBDjaCjFowKJQgiFTJo4m7zYFs5qWxzbROsoHfcwPhK2",
+	"CpX0ZnwHivITQSMhkZ4AOmWjBHXHwDUaEv8BeDrpZD4YjZppk+xwYVX3xwV28DSViDv4oHnYbBfohjv4",
+	"qNluHtmCoScWqxaJ9aQVmCuC5aFI+Wi4blsPc47pDeImTabZqXwTNNnacKx0Q5mViWHLnlN+pHDYbm9N",
+	"d2lQVjOXOykOOn0fIg0UEXsWdvSDsnJQmer2QDdOhHhgsHzmntDEjvvPtY5McUcSRhLUJOOab/fNaUXq",
+	"4twYepzCUOfdHK5W4fGL3XKwfkt1xmz3Ha3ft3hmYXYcfHmNpprxsNl8eLh+c3VUa/d9Xb+v+FBg5uAv",
+	"r0Gx/JzD5p04DIlMypNxQAQFwicBMq2HpUlKD0RyvpjQJWNlMl55pI4HRuw8HkWsVwakiPU8Ij8oNCqX",
+	"6JrgyMafKLugIiERCSQQmiAyVMD1BlHh2hkjfXMsbEzQfXDFs0DZ9G4fU3E993cTfqQd9RhqqPEd9Ekq",
+	"+aPpUep06zJn5mApmdjAaL4rFe3w3LLeAnfuyl3F3WA2KB+rjiW3x7rs7atONGPByyHvpQt6c5bsrSLO",
+	"g96Usc0LH9D3172dFbG95AiLkiVTGR9TTphSpjVFHB5LDeorSZaOT1axLF3xgc1edYbzqn7vYGfsNp6j",
+	"HKjP3eptzPb2K9g+f3HmL9Xj5aR9f39nrpj/W1W9L+2CD8zvladyL7yLEElhswtTiBibm3vE3rBnbpAx",
+	"hoNSBaCvcwxVBrJtQVei7KUrPhDm5ecfdW/VBAHKcx+iEAGnwH0G6Us11o2dAm92He3wpaIa5+2bZjEn",
+	"U8ICMgygWU+HwnqZI72KEvOxyMucyGYxH0mK6nizBpMrwRsKuGKaTQHZqR1iPJ19s+wtpX3GYTZTTJNf",
+	"PrPK0H35BGw3Lae2ZN4941gGuINbJGKt6QGeDWb/DwAA//8T59HBQyoAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

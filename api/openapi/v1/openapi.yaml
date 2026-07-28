@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Dify Agent API
-  version: 1.1.0
+  version: 1.2.0
   description: Versioned contract for the Dify Agent backend service.
 servers:
   - url: /api/v1
@@ -18,6 +18,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
         "500":
           $ref: "#/components/responses/InternalError"
   /readyz:
@@ -38,6 +40,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
         "500":
           $ref: "#/components/responses/InternalError"
   /version:
@@ -52,6 +56,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VersionResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
         "500":
           $ref: "#/components/responses/InternalError"
   /auth/register:
@@ -79,6 +85,12 @@ paths:
                 $ref: "#/components/schemas/AuthResponse"
         "409":
           $ref: "#/components/responses/Conflict"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
         "422":
           $ref: "#/components/responses/ValidationError"
         "429":
@@ -110,6 +122,12 @@ paths:
                 $ref: "#/components/schemas/AuthResponse"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
         "422":
           $ref: "#/components/responses/ValidationError"
         "429":
@@ -135,6 +153,8 @@ paths:
                 $ref: "#/components/schemas/AuthResponse"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/RateLimited"
         "500":
@@ -145,13 +165,19 @@ paths:
       summary: Revoke the current refresh session
       tags: [Authentication]
       responses:
-        "204":
+        "200":
           description: Session revoked or already absent.
           headers:
             Set-Cookie:
               description: Expired refresh token cookie.
               schema:
                 type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/RateLimited"
         "500":
@@ -172,6 +198,8 @@ paths:
                 $ref: "#/components/schemas/UserResponse"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "429":
+          $ref: "#/components/responses/RateLimited"
         "500":
           $ref: "#/components/responses/InternalError"
 components:
@@ -182,6 +210,18 @@ components:
       bearerFormat: opaque
       description: Short-lived opaque access token kept only in browser memory.
   responses:
+    BadRequest:
+      description: The request body is malformed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: The request origin or identity is not permitted.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     InternalError:
       description: An unexpected server error occurred.
       content:
@@ -212,6 +252,12 @@ components:
         Retry-After:
           schema:
             type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnsupportedMediaType:
+      description: The request body does not use application/json.
       content:
         application/json:
           schema:
@@ -252,6 +298,22 @@ components:
     AuthResponse:
       type: object
       additionalProperties: false
+      required: [code, message, requestId, data]
+      properties:
+        code:
+          type: string
+          enum: [USER_REGISTERED, AUTHENTICATED, SESSION_REFRESHED]
+        message:
+          type: string
+          minLength: 1
+        requestId:
+          type: string
+          minLength: 1
+        data:
+          $ref: "#/components/schemas/AuthSessionData"
+    AuthSessionData:
+      type: object
+      additionalProperties: false
       required: [accessToken, expiresAt, user]
       properties:
         accessToken:
@@ -261,8 +323,45 @@ components:
           type: string
           format: date-time
         user:
-          $ref: "#/components/schemas/UserResponse"
+          $ref: "#/components/schemas/UserData"
     UserResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId, data]
+      properties:
+        code:
+          type: string
+          enum: [CURRENT_USER_RETRIEVED]
+        message:
+          type: string
+          minLength: 1
+        requestId:
+          type: string
+          minLength: 1
+        data:
+          $ref: "#/components/schemas/UserData"
+    LogoutResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId, data]
+      properties:
+        code:
+          type: string
+          enum: [SESSION_REVOKED]
+        message:
+          type: string
+          minLength: 1
+        requestId:
+          type: string
+          minLength: 1
+        data:
+          type: object
+          additionalProperties: false
+          required: [revoked]
+          properties:
+            revoked:
+              type: boolean
+    UserData:
       type: object
       additionalProperties: false
       required: [id, email, displayName, role, createdAt]
@@ -302,8 +401,10 @@ components:
           pattern: "^[A-Z][A-Z0-9_]+$"
         message:
           type: string
+          minLength: 1
         requestId:
           type: string
+          minLength: 1
         errors:
           type: array
           items:
@@ -311,42 +412,83 @@ components:
     HealthResponse:
       type: object
       additionalProperties: false
-      required: [status]
+      required: [code, message, requestId, data]
       properties:
-        status:
+        code:
           type: string
-          enum: [ok]
+          enum: [HEALTHY]
+        message:
+          type: string
+          minLength: 1
+        requestId:
+          type: string
+          minLength: 1
+        data:
+          type: object
+          additionalProperties: false
+          required: [status]
+          properties:
+            status:
+              type: string
+              enum: [ok]
     ReadinessResponse:
       type: object
       additionalProperties: false
-      required: [status, checks]
+      required: [code, message, requestId, data]
       properties:
-        status:
+        code:
           type: string
-          enum: [ok]
-        checks:
+          enum: [READY]
+        message:
+          type: string
+          minLength: 1
+        requestId:
+          type: string
+          minLength: 1
+        data:
           type: object
           additionalProperties: false
-          required: [database, migrations]
+          required: [status, checks]
           properties:
-            database:
+            status:
               type: string
               enum: [ok]
-            migrations:
-              type: string
-              enum: [ok]
+            checks:
+              type: object
+              additionalProperties: false
+              required: [database, migrations]
+              properties:
+                database:
+                  type: string
+                  enum: [ok]
+                migrations:
+                  type: string
+                  enum: [ok]
     VersionResponse:
       type: object
       additionalProperties: false
-      required: [releaseId, buildCommit, contractId, openapiDigest]
+      required: [code, message, requestId, data]
       properties:
-        releaseId:
+        code:
           type: string
-        buildCommit:
+          enum: [VERSION_RETRIEVED]
+        message:
           type: string
-        contractId:
+          minLength: 1
+        requestId:
           type: string
-        openapiDigest:
-          type: string
-          pattern: "^[a-f0-9]{64}$"
-
+          minLength: 1
+        data:
+          type: object
+          additionalProperties: false
+          required: [releaseId, buildCommit, contractId, openapiDigest]
+          properties:
+            releaseId:
+              type: string
+            buildCommit:
+              type: string
+            contractId:
+              type: string
+            openapiDigest:
+              type: string
+              pattern: "^[a-f0-9]{64}$"

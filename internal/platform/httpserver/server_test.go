@@ -29,10 +29,10 @@ func testConfig() config.Config {
 
 func TestOperationalEndpoints(t *testing.T) {
 	handler := New(testConfig(), fakeReadiness{}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil)
-	for _, test := range []struct{ path, body string }{
-		{"/api/v1/livez", `"status":"ok"`},
-		{"/api/v1/readyz", `"database":"ok"`},
-		{"/api/v1/version", `"releaseId":"test"`},
+	for _, test := range []struct{ path, code, body string }{
+		{"/api/v1/livez", `"code":"HEALTHY"`, `"status":"ok"`},
+		{"/api/v1/readyz", `"code":"READY"`, `"database":"ok"`},
+		{"/api/v1/version", `"code":"VERSION_RETRIEVED"`, `"releaseId":"test"`},
 	} {
 		req := httptest.NewRequest(http.MethodGet, test.path, nil)
 		res := httptest.NewRecorder()
@@ -40,14 +40,31 @@ func TestOperationalEndpoints(t *testing.T) {
 		if res.Code != http.StatusOK {
 			t.Errorf("%s: status %d, body %s", test.path, res.Code, res.Body.String())
 		}
-		if !strings.Contains(res.Body.String(), test.body) {
-			t.Errorf("%s: missing %s in %s", test.path, test.body, res.Body.String())
+		if !strings.Contains(res.Body.String(), test.code) || !strings.Contains(res.Body.String(), test.body) {
+			t.Errorf("%s: standard response missing %s or %s in %s", test.path, test.code, test.body, res.Body.String())
 		}
 		if res.Header().Get("X-Request-Id") == "" {
 			t.Errorf("%s: request id missing", test.path)
 		}
 		if res.Header().Get("X-Content-Type-Options") != "nosniff" {
 			t.Errorf("%s: security headers missing", test.path)
+		}
+	}
+}
+
+func TestUnknownRoutesAndMethodsUseStandardErrors(t *testing.T) {
+	handler := New(testConfig(), fakeReadiness{}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil)
+	for _, test := range []struct {
+		method, path, code string
+		status             int
+	}{
+		{http.MethodGet, "/api/v1/missing", `"code":"ROUTE_NOT_FOUND"`, http.StatusNotFound},
+		{http.MethodDelete, "/api/v1/livez", `"code":"METHOD_NOT_ALLOWED"`, http.StatusMethodNotAllowed},
+	} {
+		res := httptest.NewRecorder()
+		handler.ServeHTTP(res, httptest.NewRequest(test.method, test.path, nil))
+		if res.Code != test.status || !strings.Contains(res.Body.String(), test.code) {
+			t.Errorf("%s %s: unexpected response %d %s", test.method, test.path, res.Code, res.Body.String())
 		}
 	}
 }

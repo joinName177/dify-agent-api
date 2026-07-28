@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
@@ -42,7 +41,15 @@ func New(cfg config.Config, db readinessChecker, logger *slog.Logger, digest str
 	router.Use(platformhttp.RateLimit(cfg.RateLimitRPS, cfg.RateLimitBurst))
 	router.Use(platformauth.OptionalMiddleware(authenticator))
 	implementation := &Handler{db: db, user: userHandler, releaseID: cfg.ReleaseID, buildCommit: cfg.BuildCommit, digest: digest}
-	router.Mount("/api/v1", openapiv1.Handler(implementation))
+	apiRouter := chi.NewRouter()
+	apiRouter.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		platformhttp.WriteError(w, r, http.StatusNotFound, "ROUTE_NOT_FOUND", "The requested route does not exist.")
+	})
+	apiRouter.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		platformhttp.WriteError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "The request method is not allowed.")
+	})
+	openapiv1.HandlerFromMux(implementation, apiRouter)
+	router.Mount("/api/v1", apiRouter)
 	return router
 }
 
@@ -52,8 +59,14 @@ func (h *Handler) RefreshSession(w http.ResponseWriter, r *http.Request) { h.use
 func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request)     { h.user.LogoutUser(w, r) }
 func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) { h.user.GetCurrentUser(w, r) }
 
-func (h *Handler) GetLivez(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, openapiv1.HealthResponse{Status: openapiv1.HealthResponseStatusOk})
+func (h *Handler) GetLivez(w http.ResponseWriter, r *http.Request) {
+	response := openapiv1.HealthResponse{
+		Code:      openapiv1.HEALTHY,
+		Message:   "Service is healthy.",
+		RequestId: platformhttp.RequestIDFromContext(r.Context()),
+	}
+	response.Data.Status = openapiv1.HealthResponseDataStatusOk
+	platformhttp.WriteJSON(w, http.StatusOK, response)
 }
 
 func (h *Handler) GetReadyz(w http.ResponseWriter, r *http.Request) {
@@ -65,18 +78,26 @@ func (h *Handler) GetReadyz(w http.ResponseWriter, r *http.Request) {
 		platformhttp.WriteError(w, r, http.StatusServiceUnavailable, "MIGRATIONS_NOT_READY", "Database migrations are not ready.")
 		return
 	}
-	writeJSON(w, http.StatusOK, openapiv1.ReadinessResponse{Status: openapiv1.ReadinessResponseStatusOk, Checks: struct {
-		Database   openapiv1.ReadinessResponseChecksDatabase   `json:"database"`
-		Migrations openapiv1.ReadinessResponseChecksMigrations `json:"migrations"`
-	}{Database: openapiv1.ReadinessResponseChecksDatabaseOk, Migrations: openapiv1.ReadinessResponseChecksMigrationsOk}})
+	response := openapiv1.ReadinessResponse{
+		Code:      openapiv1.READY,
+		Message:   "Service is ready.",
+		RequestId: platformhttp.RequestIDFromContext(r.Context()),
+	}
+	response.Data.Status = openapiv1.ReadinessResponseDataStatusOk
+	response.Data.Checks.Database = openapiv1.ReadinessResponseDataChecksDatabaseOk
+	response.Data.Checks.Migrations = openapiv1.ReadinessResponseDataChecksMigrationsOk
+	platformhttp.WriteJSON(w, http.StatusOK, response)
 }
 
-func (h *Handler) GetVersion(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, openapiv1.VersionResponse{ReleaseId: h.releaseID, BuildCommit: h.buildCommit, ContractId: "dify-agent-api/v1", OpenapiDigest: h.digest})
-}
-
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
+func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
+	response := openapiv1.VersionResponse{
+		Code:      openapiv1.VERSIONRETRIEVED,
+		Message:   "Version retrieved.",
+		RequestId: platformhttp.RequestIDFromContext(r.Context()),
+	}
+	response.Data.ReleaseId = h.releaseID
+	response.Data.BuildCommit = h.buildCommit
+	response.Data.ContractId = "dify-agent-api/v1"
+	response.Data.OpenapiDigest = h.digest
+	platformhttp.WriteJSON(w, http.StatusOK, response)
 }

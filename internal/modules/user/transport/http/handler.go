@@ -60,7 +60,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
-	h.writeSession(w, r, http.StatusCreated, session)
+	h.writeSession(w, r, http.StatusCreated, openapiv1.USERREGISTERED, "User registered.", session)
 }
 
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +80,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
-	h.writeSession(w, r, http.StatusOK, session)
+	h.writeSession(w, r, http.StatusOK, openapiv1.AUTHENTICATED, "Authentication succeeded.", session)
 }
 
 func (h *Handler) RefreshSession(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +99,7 @@ func (h *Handler) RefreshSession(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
-	h.writeSession(w, r, http.StatusOK, session)
+	h.writeSession(w, r, http.StatusOK, openapiv1.SESSIONREFRESHED, "Session refreshed.", session)
 }
 
 func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
@@ -115,7 +115,13 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.clearRefreshCookie(w)
-	w.WriteHeader(http.StatusNoContent)
+	response := openapiv1.LogoutResponse{
+		Code:      openapiv1.SESSIONREVOKED,
+		Message:   "Session revoked.",
+		RequestId: platformhttp.RequestIDFromContext(r.Context()),
+	}
+	response.Data.Revoked = true
+	platformhttp.WriteJSON(w, http.StatusOK, response)
 }
 
 func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
@@ -129,10 +135,15 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, response)
+	platformhttp.WriteJSON(w, http.StatusOK, openapiv1.UserResponse{
+		Code:      openapiv1.CURRENTUSERRETRIEVED,
+		Message:   "Current user retrieved.",
+		RequestId: platformhttp.RequestIDFromContext(r.Context()),
+		Data:      response,
+	})
 }
 
-func (h *Handler) writeSession(w http.ResponseWriter, r *http.Request, status int, session usecases.AuthSession) {
+func (h *Handler) writeSession(w http.ResponseWriter, r *http.Request, status int, code openapiv1.AuthResponseCode, message string, session usecases.AuthSession) {
 	user, err := userResponse(session.User)
 	if err != nil {
 		h.writeError(w, r, err)
@@ -140,7 +151,16 @@ func (h *Handler) writeSession(w http.ResponseWriter, r *http.Request, status in
 	}
 	h.setRefreshCookie(w, session.RefreshToken, session.RefreshExpiresAt)
 	w.Header().Set("Cache-Control", "no-store")
-	writeJSON(w, status, openapiv1.AuthResponse{AccessToken: session.AccessToken, ExpiresAt: session.AccessExpiresAt, User: user})
+	platformhttp.WriteJSON(w, status, openapiv1.AuthResponse{
+		Code:      code,
+		Message:   message,
+		RequestId: platformhttp.RequestIDFromContext(r.Context()),
+		Data: openapiv1.AuthSessionData{
+			AccessToken: session.AccessToken,
+			ExpiresAt:   session.AccessExpiresAt,
+			User:        user,
+		},
+	})
 }
 
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
@@ -198,30 +218,22 @@ func decodeRequest(w http.ResponseWriter, r *http.Request, destination any) bool
 	return true
 }
 
-func userResponse(user domain.User) (openapiv1.UserResponse, error) {
+func userResponse(user domain.User) (openapiv1.UserData, error) {
 	id, err := uuid.Parse(user.PublicID)
 	if err != nil {
-		return openapiv1.UserResponse{}, errors.New("stored user id is invalid")
+		return openapiv1.UserData{}, errors.New("stored user id is invalid")
 	}
-	return openapiv1.UserResponse{Id: id, Email: openapi_types.Email(user.Email), DisplayName: user.DisplayName, Role: openapiv1.UserResponseRole(user.Role), CreatedAt: user.CreatedAt}, nil
+	return openapiv1.UserData{Id: id, Email: openapi_types.Email(user.Email), DisplayName: user.DisplayName, Role: openapiv1.UserDataRole(user.Role), CreatedAt: user.CreatedAt}, nil
 }
 
-func identityResponse(identity platformauth.Identity) (openapiv1.UserResponse, error) {
+func identityResponse(identity platformauth.Identity) (openapiv1.UserData, error) {
 	id, err := uuid.Parse(identity.PublicID)
 	if err != nil {
-		return openapiv1.UserResponse{}, errors.New("authenticated user id is invalid")
+		return openapiv1.UserData{}, errors.New("authenticated user id is invalid")
 	}
-	return openapiv1.UserResponse{Id: id, Email: openapi_types.Email(identity.Email), DisplayName: identity.DisplayName, Role: openapiv1.UserResponseRole(identity.Role), CreatedAt: identity.CreatedAt}, nil
+	return openapiv1.UserData{Id: id, Email: openapi_types.Email(identity.Email), DisplayName: identity.DisplayName, Role: openapiv1.UserDataRole(identity.Role), CreatedAt: identity.CreatedAt}, nil
 }
 
 func writeAPIError(w http.ResponseWriter, r *http.Request, status int, code, message string, fields *[]openapiv1.FieldError) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(openapiv1.ErrorResponse{Code: code, Message: message, RequestId: platformhttp.RequestIDFromContext(r.Context()), Errors: fields})
-}
-
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
+	platformhttp.WriteJSON(w, status, openapiv1.ErrorResponse{Code: code, Message: message, RequestId: platformhttp.RequestIDFromContext(r.Context()), Errors: fields})
 }

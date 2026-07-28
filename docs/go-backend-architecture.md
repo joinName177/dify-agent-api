@@ -104,6 +104,19 @@ dify-agent-api/
 
 Handler 只负责：解析已生成的请求类型、调用已认证身份上下文、执行输入校验、调用 Use Case、映射稳定响应和错误。Handler 不得直接写 SQL、决定业务状态机、构造权限规则或调用未注册外部服务。
 
+所有 JSON 成功响应使用稳定信封，同时保留 HTTP 状态码的资源语义；协调切换决策见 [ADR 0002](adr/0002-standard-api-response-envelope.md)：
+
+```json
+{
+  "code": "USER_REGISTERED",
+  "message": "User registered.",
+  "requestId": "01J...",
+  "data": {}
+}
+```
+
+`code` 是客户端映射本地化提示和遥测的稳定机器码；`message` 只提供安全的默认说明；`requestId` 用于关联日志；具体资源只位于 `data`。需要返回响应信封的操作不得使用无响应体的 `204`。
+
 所有错误使用稳定结构：
 
 ```json

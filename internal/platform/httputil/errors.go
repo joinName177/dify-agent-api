@@ -12,7 +12,11 @@ type ErrorResponse struct {
 }
 
 func WriteError(w http.ResponseWriter, r *http.Request, status int, code, safeMessage string) {
+	WriteJSON(w, status, ErrorResponse{Code: code, Message: safeMessage, RequestID: RequestIDFromContext(r.Context())})
+}
+
+func WriteJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(ErrorResponse{Code: code, Message: safeMessage, RequestID: RequestIDFromContext(r.Context())})
+	_ = json.NewEncoder(w).Encode(value)
 }

@@ -21,7 +21,7 @@ func RequestID(next http.Handler) http.Handler {
 			var err error
 			requestID, err = newRequestID()
 			if err != nil {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred.")
 				return
 			}
 		}

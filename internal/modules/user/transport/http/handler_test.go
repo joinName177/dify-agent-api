@@ -43,6 +43,10 @@ func TestRegisterSetsServerManagedRefreshCookie(t *testing.T) {
 	if response.Code != http.StatusCreated {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
+	if !strings.Contains(response.Body.String(), `"code":"USER_REGISTERED"`) ||
+		!strings.Contains(response.Body.String(), `"data":{"accessToken"`) {
+		t.Fatalf("standard success response missing: %s", response.Body.String())
+	}
 	cookies := response.Result().Cookies()
 	if len(cookies) != 1 || !cookies[0].HttpOnly || !cookies[0].Secure || cookies[0].SameSite != http.SameSiteLaxMode {
 		t.Fatalf("refresh cookie is unsafe: %+v", cookies)
@@ -85,6 +89,20 @@ func TestRefreshClearsInvalidCookie(t *testing.T) {
 
 	if response.Code != http.StatusUnauthorized || len(response.Result().Cookies()) != 1 || response.Result().Cookies()[0].MaxAge != -1 {
 		t.Fatalf("invalid refresh response: %d %+v", response.Code, response.Result().Cookies())
+	}
+}
+
+func TestLogoutReturnsStandardIdempotentResponse(t *testing.T) {
+	handler := NewHandler(&fakeService{}, slog.Default(), nil, false)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	response := httptest.NewRecorder()
+
+	handler.LogoutUser(response, request)
+
+	if response.Code != http.StatusOK ||
+		!strings.Contains(response.Body.String(), `"code":"SESSION_REVOKED"`) ||
+		!strings.Contains(response.Body.String(), `"data":{"revoked":true}`) {
+		t.Fatalf("unexpected logout response: %d %s", response.Code, response.Body.String())
 	}
 }
 
