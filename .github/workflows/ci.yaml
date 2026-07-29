@@ -9,8 +9,82 @@ permissions:
   contents: read
 
 jobs:
-  quality:
+  governance-check:
+    name: governance-check
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container: golang:1.26.5-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651
+    env:
+      COMMIT_TITLE: ${{ github.event.pull_request.title || '' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/go-cache
+      - run: make ci-governance-check GO_RUNNER=
+
+  format-check:
+    name: format-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    container: golang:1.26.5-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/go-cache
+      - run: make format-check GO_RUNNER=
+
+  generated-code-drift:
+    name: generated-code-drift
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container: golang:1.26.5-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/go-cache
+      - run: make generated-check OAPI_CODEGEN_RUNTIME=local
+
+  module-check:
+    name: module-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container: golang:1.26.5-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/go-cache
+      - run: make mod-check GO_RUNNER=
+
+  static-analysis:
+    name: static-analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: golang:1.26.5-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/go-cache
+      - run: make static-analysis GO_RUNNER=
+
+  architecture-check:
+    name: architecture-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container: golang:1.26.5-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/go-cache
+      - run: make architecture-check GO_RUNNER=
+
+  unit-race-test:
+    name: unit-race-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: golang:1.26.5-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/go-cache
+      - run: make unit-race-test GO_RUNNER= RACE_RUNNER=
+
+  migration-check:
+    name: migration-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     container: golang:1.26.5-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651
     services:
       postgres:
@@ -25,36 +99,64 @@ jobs:
           --health-timeout 3s
           --health-retries 20
     env:
-      DIFY_AGENT_ENVIRONMENT: test
       DIFY_AGENT_DATABASE_URL: postgres://dify_agent_test:integration-only@postgres:5432/dify_agent_test?sslmode=disable
-      DIFY_AGENT_BOOTSTRAP_ADMIN_EMAIL: admin@example.test
-      DIFY_AGENT_BOOTSTRAP_ADMIN_PASSWORD: ci-only-admin-password
-      DIFY_AGENT_CORS_ALLOWED_ORIGINS: https://app.example.com
-      DIFY_AGENT_RELEASE_ID: ci
-      DIFY_AGENT_BUILD_COMMIT: ${{ github.sha }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Formatting
-        run: test -z "$(gofmt -l cmd internal generated)"
-      - name: Generate contract
-        run: |
-          go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.6.0 -config api/openapi/v1/oapi-codegen.yaml api/openapi/v1/openapi.yaml
-          make digest
-          git diff --exit-code -- generated api/openapi/v1/openapi.sha256
-      - name: Static analysis
-        run: |
-          go vet ./...
-          go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...
-          go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
-      - name: Unit and race tests
-        run: go test -race ./...
-      - name: Apply migrations
-        run: go run -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@v4.19.1 -path migrations -database "$DIFY_AGENT_DATABASE_URL" up
-      - name: Build API
-        run: go build -trimpath ./cmd/api
+      - uses: ./.github/actions/go-cache
+      - run: make migration-check GO_RUNNER=
 
-  container:
+  integration-test:
+    name: integration-test
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: golang:1.26.5-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651
+    services:
+      postgres:
+        image: postgres:17.5-alpine3.21@sha256:5d004e058f520673f1f6edbad6b1603d5dab4c818e257c041889ef64672a8cc4
+        env:
+          POSTGRES_DB: dify_agent_test
+          POSTGRES_USER: dify_agent_test
+          POSTGRES_PASSWORD: integration-only
+        options: >-
+          --health-cmd "pg_isready -U dify_agent_test -d dify_agent_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DIFY_AGENT_DATABASE_URL: postgres://dify_agent_test:integration-only@postgres:5432/dify_agent_test?sslmode=disable
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - run: docker build --sbom=true --provenance=mode=max -t dify-agent-api:ci .
+      - uses: ./.github/actions/go-cache
+      - run: make integration-test GO_RUNNER=
+
+  e2e-test:
+    name: e2e-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: golang:1.26.5-bookworm@sha256:1ecb7edf62a0408027bd5729dfd6b1b8766e578e8df93995b225dfd0944eb651
+    services:
+      postgres:
+        image: postgres:17.5-alpine3.21@sha256:5d004e058f520673f1f6edbad6b1603d5dab4c818e257c041889ef64672a8cc4
+        env:
+          POSTGRES_DB: dify_agent_test
+          POSTGRES_USER: dify_agent_test
+          POSTGRES_PASSWORD: integration-only
+        options: >-
+          --health-cmd "pg_isready -U dify_agent_test -d dify_agent_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DIFY_AGENT_DATABASE_URL: postgres://dify_agent_test:integration-only@postgres:5432/dify_agent_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/go-cache
+      - run: make e2e-test GO_RUNNER=
+
+  container-build:
+    name: container-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: make container-build IMAGE_TAG=dify-agent-api:ci

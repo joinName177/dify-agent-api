@@ -1,0 +1,12 @@
+name: Go dependency cache
+description: Restore immutable-keyed Go module and build caches for CI container jobs.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          /go/pkg/mod
+          /root/.cache/go-build
+        key: ${{ runner.os }}-${{ runner.arch }}-go-${{ hashFiles('go.sum', 'Makefile') }}

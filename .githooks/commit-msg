@@ -1,0 +1,6 @@
+#!/bin/sh
+
+set -eu
+repository_root=$(git rev-parse --show-toplevel)
+commit_title=$(sed -n '1p' "$1")
+COMMIT_TITLE=$commit_title exec make -C "$repository_root" commit-policy

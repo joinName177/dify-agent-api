@@ -51,6 +51,18 @@ flowchart LR
 
 依赖只能向内：`transport → application → domain`；`infrastructure` 实现 application port，并可依赖 domain。Domain 不得依赖 HTTP、chi、pgx、OpenAPI 生成物、配置、日志或外部 SDK。跨模块只允许通过公开 application contract，不得深层导入内部 package。
 
+### 3.1 可执行依赖矩阵
+
+| 来源层 | 允许依赖 | 自动禁止 |
+| --- | --- | --- |
+| `domain` | 同模块 `domain`、标准库和无框架纯值依赖 | application、infrastructure、transport、platform、generated、chi、pgx |
+| `application` | 同模块 domain/application、跨模块公开 application 根 contract | infrastructure、transport、generated、chi、pgx、跨模块深层 package |
+| `infrastructure` | 同模块 application/domain、必要 platform 和基础设施 SDK | transport、跨模块深层 package |
+| `transport` | 同模块 application/domain、generated、HTTP platform | infrastructure、pgx、跨模块深层 package |
+| `platform` | 标准库和平台级第三方库 | 任意业务模块 |
+
+机器规则由 `tools/architecturecheck` 对完整 module import path 执行，规则表与检查器测试必须同步修改。Handler 是否承载业务状态机、事务中是否包含远程 I/O、application contract 是否具有业务语义无法仅靠 import 图可靠判断，继续作为 `docs/code-review.md` 的人工检查项。
+
 ## 4. 项目结构
 
 ```text
@@ -143,7 +155,7 @@ Handler 只负责：解析已生成的请求类型、调用已认证身份上下
 
 ## 6. 身份、权限与租户隔离
 
-当前产品使用本地邮箱密码认证。密码只在 TLS 保护的注册/登录请求中接收，使用带随机盐的 Argon2id 哈希存储；任何日志、错误或审计记录都不得包含密码。短期 access token 为随机不透明 bearer token，仅在 SPA 内存中保存；长期 refresh token 通过 Secure、HttpOnly、SameSite Cookie 传递，数据库只保存两类 token 的 SHA-256 摘要。刷新必须原子轮换，注销、禁用账号或会话撤销后旧 token 不再有效。
+当前产品使用本地邮箱密码认证。密码只在 TLS 保护的注册/登录请求中接收，使用带随机盐的 Argon2id 哈希存储；任何日志、错误或审计记录都不得包含密码。短期 access token 为随机不透明 bearer token，仅在 SPA 内存中保存；长期 refresh token 通过默认 Secure 的 HttpOnly、SameSite Cookie 传递，数据库只保存两类 token 的 SHA-256 摘要。只有 development/test 可为 localhost HTTP 显式关闭 Cookie 的 Secure 属性。刷新必须原子轮换，注销、禁用账号或会话撤销后旧 token 不再有效。
 
 服务启动时从受管 Secret 读取内置管理员邮箱与密码。若邮箱不存在则创建 `super_admin`；若该邮箱已被普通用户占用则 fail-closed，禁止静默提权。应用层只从经过验证的服务端 `Identity` 读取角色，禁止信任前端传入的角色。具体决策见 `docs/adr/0001-local-credentials-authentication.md`。
 
@@ -156,17 +168,19 @@ Handler 只负责：解析已生成的请求类型、调用已认证身份上下
 
 ## 7. PostgreSQL 与迁移
 
-生产与集成测试使用 PostgreSQL；本地通过 Docker Compose 提供同主版本服务。SQLite 可以用于一次性、离线原型，但不得进入生产配置、迁移验证、性能结论或契约测试结论。
+生产与集成测试使用 PostgreSQL；本地通过 Docker Compose 提供同主版本服务。生产连接必须使用 `sslmode=verify-full` 验证证书信任和主机名，具体决策见 [ADR 0004](adr/0004-secure-transport-defaults.md)。SQLite 可以用于一次性、离线原型，但不得进入生产配置、迁移验证、性能结论或契约测试结论。
 
 Repository 通过 `pgxpool.Pool` 获取连接，所有 I/O 接收并传播 `context.Context`。写入 Use Case 用显式事务封装；事务只覆盖必要数据库操作，不包含远程 HTTP、长计算、文件操作或消息等待。
 
 迁移规则：
 
+- `migrations/manifest.json` 固化已发布迁移的 SHA-256、顺序和可逆性。当前版本 1、2 经 Git 历史 `0918f3c` 与工作树逐文件摘要核对后建立基线，均声明可逆。
 - 迁移文件按单调版本创建，只追加，不重命名、不修改已发布迁移。
 - 每个迁移必须包含可审查的 forward SQL、锁/耗时评估、回滚或前向修复策略。
 - 破坏性 Schema 采用 expand → backfill → cutover → contract，不能在同一发布直接删除被运行中版本使用的列。
 - 所有唯一约束、外键、索引、软删除和数据保留策略由迁移明示，不由 ORM 隐式生成。
 - 应用启动不自动执行生产迁移；迁移是独立、可审计的发布步骤。
+- `make migration-check` 在真实 PostgreSQL 上执行全量 up、关键约束/索引/外键验证以及 down/up 回放；历史 SQL 修改或未登记文件在接触数据库前失败。
 
 ## 8. 配置、密钥与外部 I/O
 

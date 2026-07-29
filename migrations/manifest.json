@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "policy": "append-only",
+  "migrations": [
+    {
+      "version": 1,
+      "name": "bootstrap",
+      "reversible": true,
+      "upSHA256": "5c0d0b7b29afbb1218c830eedeb4f5b7ab17b8bc07f1c1330e436c23714ddfe5",
+      "downSHA256": "5f03a9c82f117b4c0bdada2c27edf0db476313c0195b566ce8674c7c5ecada6f"
+    },
+    {
+      "version": 2,
+      "name": "users_and_sessions",
+      "reversible": true,
+      "upSHA256": "ac890516998f9b5e83c4e241d2e3e7d8c5c0a37dfd38b5e2f3a2dd234268f857",
+      "downSHA256": "ac969740c73ab38241d4c05990132477ea72c69338594b6ebd4eb142ddce2eba"
+    }
+  ]
+}

@@ -33,7 +33,7 @@ func (*fakeService) Logout(context.Context, string) error { return nil }
 
 func TestRegisterSetsServerManagedRefreshCookie(t *testing.T) {
 	service := &fakeService{}
-	handler := NewHandler(service, slog.New(slog.NewTextHandler(io.Discard, nil)), []string{"https://app.example.test"}, true)
+	handler := NewHandler(service, slog.New(slog.NewTextHandler(io.Discard, nil)), []string{"https://app.example.test"}, SecureCookies)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{"email":"person@example.test","password":"long-enough-password","displayName":"Person"}`))
 	request.Header.Set("Origin", "https://app.example.test")
 	response := httptest.NewRecorder()
@@ -53,9 +53,20 @@ func TestRegisterSetsServerManagedRefreshCookie(t *testing.T) {
 	}
 }
 
+func TestCookiePolicyDefaultsToSecure(t *testing.T) {
+	for _, policy := range []CookiePolicy{SecureCookies, CookiePolicy(255)} {
+		if !policy.secure() {
+			t.Fatalf("cookie policy %d must default to Secure", policy)
+		}
+	}
+	if InsecureCookiesForLocalDevelopment.secure() {
+		t.Fatal("local development cookie policy must support HTTP")
+	}
+}
+
 func TestRegisterRejectsUnknownOriginBeforeCallingService(t *testing.T) {
 	service := &fakeService{}
-	handler := NewHandler(service, slog.Default(), []string{"https://app.example.test"}, true)
+	handler := NewHandler(service, slog.Default(), []string{"https://app.example.test"}, SecureCookies)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{}`))
 	request.Header.Set("Origin", "https://evil.example.test")
 	response := httptest.NewRecorder()
@@ -68,7 +79,7 @@ func TestRegisterRejectsUnknownOriginBeforeCallingService(t *testing.T) {
 }
 
 func TestLoginUsesStableInvalidCredentialsCode(t *testing.T) {
-	handler := NewHandler(&fakeService{loginErr: usecases.ErrInvalidCredentials}, slog.Default(), nil, false)
+	handler := NewHandler(&fakeService{loginErr: usecases.ErrInvalidCredentials}, slog.Default(), nil, InsecureCookiesForLocalDevelopment)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"email":"person@example.test","password":"wrong"}`))
 	response := httptest.NewRecorder()
 
@@ -83,7 +94,7 @@ func TestLoginUsesStableInvalidCredentialsCode(t *testing.T) {
 
 func TestRefreshClearsInvalidCookie(t *testing.T) {
 	service := &fakeService{}
-	handler := NewHandler(service, slog.Default(), nil, false)
+	handler := NewHandler(service, slog.Default(), nil, InsecureCookiesForLocalDevelopment)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil)
 	response := httptest.NewRecorder()
 
@@ -95,7 +106,7 @@ func TestRefreshClearsInvalidCookie(t *testing.T) {
 }
 
 func TestLogoutReturnsStandardIdempotentResponse(t *testing.T) {
-	handler := NewHandler(&fakeService{}, slog.Default(), nil, false)
+	handler := NewHandler(&fakeService{}, slog.Default(), nil, InsecureCookiesForLocalDevelopment)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
 	response := httptest.NewRecorder()
 

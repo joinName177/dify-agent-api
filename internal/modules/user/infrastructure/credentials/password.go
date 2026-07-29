@@ -36,7 +36,7 @@ func (PasswordHasher) Verify(password, encodedHash string) bool {
 	if err != nil {
 		return false
 	}
-	actualKey := argon2.IDKey([]byte(password), salt, parameters.iterations, parameters.memoryKiB, parameters.parallelism, uint32(len(expectedKey)))
+	actualKey := argon2.IDKey([]byte(password), salt, parameters.iterations, parameters.memoryKiB, parameters.parallelism, keyLength)
 	return subtle.ConstantTimeCompare(actualKey, expectedKey) == 1
 }
 
@@ -54,15 +54,15 @@ func parseHash(encodedHash string) (hashParameters, []byte, []byte, error) {
 	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &parameters.memoryKiB, &parameters.iterations, &parameters.parallelism); err != nil {
 		return hashParameters{}, nil, nil, errors.New("password hash parameters are invalid")
 	}
-	if parameters.memoryKiB < argonMemoryKiB || parameters.iterations < argonIterations || parameters.parallelism < 1 {
+	if parameters.memoryKiB != argonMemoryKiB || parameters.iterations != argonIterations || parameters.parallelism != argonParallelism {
 		return hashParameters{}, nil, nil, errors.New("password hash parameters are unsafe")
 	}
 	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
-	if err != nil || len(salt) < saltLength {
+	if err != nil || len(salt) != saltLength {
 		return hashParameters{}, nil, nil, errors.New("password hash salt is invalid")
 	}
 	key, err := base64.RawStdEncoding.DecodeString(parts[5])
-	if err != nil || len(key) < keyLength {
+	if err != nil || len(key) != keyLength {
 		return hashParameters{}, nil, nil, errors.New("password hash key is invalid")
 	}
 	return parameters, salt, key, nil

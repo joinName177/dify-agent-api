@@ -3,5 +3,5 @@
 bin/
 coverage.out
 dist/
+security-reports/
 .DS_Store
-

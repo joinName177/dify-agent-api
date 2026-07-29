@@ -21,11 +21,22 @@ import (
 
 const refreshCookieName = "dify_agent_refresh"
 
+type CookiePolicy uint8
+
+const (
+	SecureCookies CookiePolicy = iota
+	InsecureCookiesForLocalDevelopment
+)
+
+func (policy CookiePolicy) secure() bool {
+	return policy != InsecureCookiesForLocalDevelopment
+}
+
 type Handler struct {
 	service        service
 	logger         *slog.Logger
 	allowedOrigins map[string]struct{}
-	secureCookies  bool
+	cookiePolicy   CookiePolicy
 }
 
 type service interface {
@@ -35,12 +46,12 @@ type service interface {
 	Logout(context.Context, string) error
 }
 
-func NewHandler(service service, logger *slog.Logger, allowedOrigins []string, secureCookies bool) *Handler {
+func NewHandler(service service, logger *slog.Logger, allowedOrigins []string, cookiePolicy CookiePolicy) *Handler {
 	origins := make(map[string]struct{}, len(allowedOrigins))
 	for _, origin := range allowedOrigins {
 		origins[origin] = struct{}{}
 	}
-	return &Handler{service: service, logger: logger, allowedOrigins: origins, secureCookies: secureCookies}
+	return &Handler{service: service, logger: logger, allowedOrigins: origins, cookiePolicy: cookiePolicy}
 }
 
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
@@ -197,11 +208,13 @@ func (h *Handler) validateOrigin(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func (h *Handler) setRefreshCookie(w http.ResponseWriter, token string, expiresAt time.Time) {
-	http.SetCookie(w, &http.Cookie{Name: refreshCookieName, Value: token, Path: "/api/v1/auth", Expires: expiresAt, MaxAge: int(time.Until(expiresAt).Seconds()), HttpOnly: true, Secure: h.secureCookies, SameSite: http.SameSiteLaxMode})
+	// #nosec G124 -- production always sets Secure; HTTP is intentionally supported only for localhost development and isolated tests.
+	http.SetCookie(w, &http.Cookie{Name: refreshCookieName, Value: token, Path: "/api/v1/auth", Expires: expiresAt, MaxAge: int(time.Until(expiresAt).Seconds()), HttpOnly: true, Secure: h.cookiePolicy.secure(), SameSite: http.SameSiteLaxMode})
 }
 
 func (h *Handler) clearRefreshCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{Name: refreshCookieName, Value: "", Path: "/api/v1/auth", MaxAge: -1, Expires: time.Unix(0, 0), HttpOnly: true, Secure: h.secureCookies, SameSite: http.SameSiteLaxMode})
+	// #nosec G124 -- expiration must use the same Secure mode as the cookie it removes; production mode is always Secure.
+	http.SetCookie(w, &http.Cookie{Name: refreshCookieName, Value: "", Path: "/api/v1/auth", MaxAge: -1, Expires: time.Unix(0, 0), HttpOnly: true, Secure: h.cookiePolicy.secure(), SameSite: http.SameSiteLaxMode})
 }
 
 func decodeRequest(w http.ResponseWriter, r *http.Request, destination any) bool {

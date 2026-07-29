@@ -53,7 +53,11 @@ func main() {
 	if adminCreated {
 		logger.Info("bootstrap super admin created")
 	}
-	userHandler := userhttp.NewHandler(userService, logger, cfg.CORSAllowedOrigins, cfg.Environment != "development" && cfg.Environment != "test")
+	cookiePolicy := userhttp.SecureCookies
+	if cfg.Environment == "development" || cfg.Environment == "test" {
+		cookiePolicy = userhttp.InsecureCookiesForLocalDevelopment
+	}
+	userHandler := userhttp.NewHandler(userService, logger, cfg.CORSAllowedOrigins, cookiePolicy)
 	shutdownTracing, err := observability.SetupTracing(rootCtx, cfg.OTLPTraceEndpoint, cfg.ReleaseID)
 	if err != nil {
 		logger.Error("telemetry initialization failed", "error", err)

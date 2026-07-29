@@ -1,2 +1,17 @@
+# The repository currently has one verified maintainer. This establishes review
+# routing but does not provide separation of duties; see the risk matrix.
 * @joinName177
 
+/api/openapi/ @joinName177
+/generated/openapi/ @joinName177
+/migrations/ @joinName177
+/internal/modules/user/ @joinName177
+/internal/platform/config/ @joinName177
+/internal/platform/httpserver/ @joinName177
+/deploy/ @joinName177
+/Dockerfile @joinName177
+/compose.yaml @joinName177
+/.github/ @joinName177
+/go.mod @joinName177
+/go.sum @joinName177
+/docs/adr/ @joinName177

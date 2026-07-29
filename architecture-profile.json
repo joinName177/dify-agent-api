@@ -1,0 +1,35 @@
+{
+  "$schema": "./architecture-profile.schema.json",
+  "project": "dify-agent-api",
+  "owner": "@joinName177",
+  "runtime": {
+    "language": "go",
+    "version": "1.26.5",
+    "entrypoint": "cmd/api",
+    "artifact": "linux-container"
+  },
+  "database": {
+    "engine": "postgresql",
+    "majorVersion": 17,
+    "migrationToolVersion": "v4.19.1"
+  },
+  "modules": ["user"],
+  "openapi": {
+    "contractId": "dify-agent-api/v1",
+    "artifact": "api/openapi/v1/openapi.yaml",
+    "digestFile": "api/openapi/v1/openapi.sha256",
+    "sha256": "49184e9d62e836a155fd2f6ed555107cfdb657f8f2dd5a7dd6dc7cd36b56ae2d"
+  },
+  "authentication": {
+    "strategy": "local-password",
+    "passwordHash": "argon2id",
+    "accessToken": "opaque-memory",
+    "refreshToken": "opaque-secure-http-only-cookie"
+  },
+  "dataClassifications": ["credentials", "authentication-secrets", "personal-data", "operational-metadata"],
+  "targets": {
+    "verify": { "owner": "@joinName177", "command": "make verify" },
+    "serve": { "owner": "@joinName177", "command": "make build" },
+    "migrate": { "owner": "@joinName177", "command": "make migrate-up" }
+  }
+}

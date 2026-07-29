@@ -9,7 +9,6 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	openapiv1 "github.com/joinname177/dify-agent-api/generated/openapi/v1"
-	userhttp "github.com/joinname177/dify-agent-api/internal/modules/user/transport/http"
 	platformauth "github.com/joinname177/dify-agent-api/internal/platform/auth"
 	"github.com/joinname177/dify-agent-api/internal/platform/config"
 	platformhttp "github.com/joinname177/dify-agent-api/internal/platform/httputil"
@@ -21,13 +20,21 @@ type readinessChecker interface {
 	CheckMigrations(context.Context) error
 }
 
+type userHandler interface {
+	RegisterUser(http.ResponseWriter, *http.Request)
+	LoginUser(http.ResponseWriter, *http.Request)
+	RefreshSession(http.ResponseWriter, *http.Request)
+	LogoutUser(http.ResponseWriter, *http.Request)
+	GetCurrentUser(http.ResponseWriter, *http.Request)
+}
+
 type Handler struct {
 	db                             readinessChecker
-	user                           *userhttp.Handler
+	user                           userHandler
 	releaseID, buildCommit, digest string
 }
 
-func New(cfg config.Config, db readinessChecker, logger *slog.Logger, digest string, userHandler *userhttp.Handler, authenticator platformauth.Authenticator) http.Handler {
+func New(cfg config.Config, db readinessChecker, logger *slog.Logger, digest string, user userHandler, authenticator platformauth.Authenticator) http.Handler {
 	router := chi.NewRouter()
 	router.Use(platformhttp.RequestID)
 	router.Use(platformhttp.Recover(logger))
@@ -40,7 +47,7 @@ func New(cfg config.Config, db readinessChecker, logger *slog.Logger, digest str
 	router.Use(chimiddleware.Timeout(cfg.RequestTimeout))
 	router.Use(platformhttp.RateLimit(cfg.RateLimitRPS, cfg.RateLimitBurst))
 	router.Use(platformauth.OptionalMiddleware(authenticator))
-	implementation := &Handler{db: db, user: userHandler, releaseID: cfg.ReleaseID, buildCommit: cfg.BuildCommit, digest: digest}
+	implementation := &Handler{db: db, user: user, releaseID: cfg.ReleaseID, buildCommit: cfg.BuildCommit, digest: digest}
 	apiRouter := chi.NewRouter()
 	apiRouter.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		platformhttp.WriteError(w, r, http.StatusNotFound, "ROUTE_NOT_FOUND", "The requested route does not exist.")

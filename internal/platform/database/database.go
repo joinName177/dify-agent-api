@@ -6,9 +6,10 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	migrationinfo "github.com/joinname177/dify-agent-api/generated/migrations"
 )
 
-const ExpectedMigrationVersion uint = 2
+const ExpectedMigrationVersion = migrationinfo.ExpectedVersion
 
 type Database struct{ pool *pgxpool.Pool }
 

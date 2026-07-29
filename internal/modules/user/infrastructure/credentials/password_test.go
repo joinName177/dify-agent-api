@@ -1,6 +1,9 @@
 package credentials
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestPasswordHasherVerifiesOnlyMatchingPassword(t *testing.T) {
 	hasher := PasswordHasher{}
@@ -28,5 +31,22 @@ func TestPasswordHasherUsesUniqueSalt(t *testing.T) {
 	}
 	if first == second {
 		t.Fatal("equal passwords produced equal hashes")
+	}
+}
+
+func TestPasswordHasherRejectsUnboundedOrNonCanonicalParameters(t *testing.T) {
+	hasher := PasswordHasher{}
+	hash, err := hasher.Hash("correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, corrupted := range []string{
+		strings.Replace(hash, "m=19456", "m=4294967295", 1),
+		strings.Replace(hash, "t=2", "t=4294967295", 1),
+		hash + "AAAA",
+	} {
+		if hasher.Verify("correct horse battery staple", corrupted) {
+			t.Fatal("accepted non-canonical password hash parameters")
+		}
 	}
 }

@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/mail"
 	"net/url"
 	"os"
@@ -88,8 +89,16 @@ func load(environ []string) (Config, error) {
 	if cfg.Environment, err = required("DIFY_AGENT_ENVIRONMENT"); err != nil {
 		return Config{}, err
 	}
+	switch cfg.Environment {
+	case "development", "test", "staging", "production":
+	default:
+		return Config{}, errors.New("DIFY_AGENT_ENVIRONMENT must be development, test, staging, or production")
+	}
 	if cfg.DatabaseURL, err = required("DIFY_AGENT_DATABASE_URL"); err != nil {
 		return Config{}, err
+	}
+	if err := validateDatabaseURL(cfg.DatabaseURL, cfg.Environment == "production"); err != nil {
+		return Config{}, fmt.Errorf("DIFY_AGENT_DATABASE_URL: %w", err)
 	}
 	if cfg.BootstrapAdminEmail, err = required("DIFY_AGENT_BOOTSTRAP_ADMIN_EMAIL"); err != nil {
 		return Config{}, err
@@ -131,36 +140,41 @@ func load(environ []string) (Config, error) {
 		if origin == "" {
 			return Config{}, errors.New("DIFY_AGENT_CORS_ALLOWED_ORIGINS contains an empty origin")
 		}
-		if err := validateHTTPSURL(origin, cfg.Environment == "development"); err != nil {
+		if err := validateOrigin(origin, cfg.Environment == "development"); err != nil {
 			return Config{}, fmt.Errorf("CORS origin %q: %w", origin, err)
 		}
 		cfg.CORSAllowedOrigins = append(cfg.CORSAllowedOrigins, origin)
 	}
 
 	cfg.HTTPAddress = withDefault("DIFY_AGENT_HTTP_ADDRESS", ":8080")
+	_, port, addressErr := net.SplitHostPort(cfg.HTTPAddress)
+	portNumber, portErr := strconv.Atoi(port)
+	if addressErr != nil || portErr != nil || portNumber < 1 || portNumber > 65535 {
+		return Config{}, errors.New("DIFY_AGENT_HTTP_ADDRESS must be a valid host:port address")
+	}
 	if cfg.DatabaseMinConns, err = parseInt32(withDefault("DIFY_AGENT_DATABASE_MIN_CONNS", "2")); err != nil {
 		return Config{}, fmt.Errorf("DIFY_AGENT_DATABASE_MIN_CONNS: %w", err)
 	}
 	if cfg.DatabaseMaxConns, err = parseInt32(withDefault("DIFY_AGENT_DATABASE_MAX_CONNS", "10")); err != nil {
 		return Config{}, fmt.Errorf("DIFY_AGENT_DATABASE_MAX_CONNS: %w", err)
 	}
-	if cfg.DatabaseMinConns < 0 || cfg.DatabaseMaxConns < 1 || cfg.DatabaseMinConns > cfg.DatabaseMaxConns {
+	if cfg.DatabaseMinConns < 0 || cfg.DatabaseMaxConns < 1 || cfg.DatabaseMaxConns > 1000 || cfg.DatabaseMinConns > cfg.DatabaseMaxConns {
 		return Config{}, errors.New("database pool sizes are invalid")
 	}
-	if cfg.HTTPReadTimeout, err = time.ParseDuration(withDefault("DIFY_AGENT_HTTP_READ_TIMEOUT", "5s")); err != nil {
-		return Config{}, err
+	if cfg.HTTPReadTimeout, err = parsePositiveDuration(withDefault("DIFY_AGENT_HTTP_READ_TIMEOUT", "5s")); err != nil {
+		return Config{}, errors.New("DIFY_AGENT_HTTP_READ_TIMEOUT must be a positive duration")
 	}
-	if cfg.HTTPWriteTimeout, err = time.ParseDuration(withDefault("DIFY_AGENT_HTTP_WRITE_TIMEOUT", "15s")); err != nil {
-		return Config{}, err
+	if cfg.HTTPWriteTimeout, err = parsePositiveDuration(withDefault("DIFY_AGENT_HTTP_WRITE_TIMEOUT", "15s")); err != nil {
+		return Config{}, errors.New("DIFY_AGENT_HTTP_WRITE_TIMEOUT must be a positive duration")
 	}
-	if cfg.HTTPIdleTimeout, err = time.ParseDuration(withDefault("DIFY_AGENT_HTTP_IDLE_TIMEOUT", "60s")); err != nil {
-		return Config{}, err
+	if cfg.HTTPIdleTimeout, err = parsePositiveDuration(withDefault("DIFY_AGENT_HTTP_IDLE_TIMEOUT", "60s")); err != nil {
+		return Config{}, errors.New("DIFY_AGENT_HTTP_IDLE_TIMEOUT must be a positive duration")
 	}
-	if cfg.HTTPShutdownTimeout, err = time.ParseDuration(withDefault("DIFY_AGENT_HTTP_SHUTDOWN_TIMEOUT", "10s")); err != nil {
-		return Config{}, err
+	if cfg.HTTPShutdownTimeout, err = parsePositiveDuration(withDefault("DIFY_AGENT_HTTP_SHUTDOWN_TIMEOUT", "10s")); err != nil {
+		return Config{}, errors.New("DIFY_AGENT_HTTP_SHUTDOWN_TIMEOUT must be a positive duration")
 	}
-	if cfg.RequestTimeout, err = time.ParseDuration(withDefault("DIFY_AGENT_REQUEST_TIMEOUT", "10s")); err != nil {
-		return Config{}, err
+	if cfg.RequestTimeout, err = parsePositiveDuration(withDefault("DIFY_AGENT_REQUEST_TIMEOUT", "10s")); err != nil {
+		return Config{}, errors.New("DIFY_AGENT_REQUEST_TIMEOUT must be a positive duration")
 	}
 	if cfg.RequestBodyLimit, err = strconv.ParseInt(withDefault("DIFY_AGENT_REQUEST_BODY_LIMIT", "1048576"), 10, 64); err != nil || cfg.RequestBodyLimit < 1 {
 		return Config{}, errors.New("DIFY_AGENT_REQUEST_BODY_LIMIT must be a positive integer")
@@ -180,6 +194,29 @@ func load(environ []string) (Config, error) {
 	return cfg, nil
 }
 
+func validateDatabaseURL(raw string, production bool) error {
+	u, err := url.Parse(raw)
+	password, hasPassword := "", false
+	if u != nil && u.User != nil {
+		password, hasPassword = u.User.Password()
+	}
+	if err != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Host == "" || u.User == nil || u.User.Username() == "" || !hasPassword || password == "" || strings.TrimPrefix(u.Path, "/") == "" || u.Fragment != "" {
+		return errors.New("must be a PostgreSQL URL with credentials, host, and database name")
+	}
+	if production && !strings.EqualFold(u.Query().Get("sslmode"), "verify-full") {
+		return errors.New("must use sslmode=verify-full in production")
+	}
+	return nil
+}
+
+func validateOrigin(raw string, allowLocalHTTP bool) error {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Path != "" && u.Path != "/") {
+		return errors.New("must be an origin without a path")
+	}
+	return validateHTTPSURL(raw, allowLocalHTTP)
+}
+
 func validateHTTPSURL(raw string, allowLocalHTTP bool) error {
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
@@ -197,4 +234,12 @@ func validateHTTPSURL(raw string, allowLocalHTTP bool) error {
 func parseInt32(value string) (int32, error) {
 	n, err := strconv.ParseInt(value, 10, 32)
 	return int32(n), err
+}
+
+func parsePositiveDuration(value string) (time.Duration, error) {
+	duration, err := time.ParseDuration(value)
+	if err != nil || duration <= 0 {
+		return 0, errors.New("duration must be positive")
+	}
+	return duration, nil
 }

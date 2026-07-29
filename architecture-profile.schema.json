@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/joinname177/dify-agent-api/architecture-profile.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project", "owner", "runtime", "database", "modules", "openapi", "authentication", "dataClassifications", "targets"],
+  "properties": {
+    "$schema": { "const": "./architecture-profile.schema.json" },
+    "project": { "const": "dify-agent-api" },
+    "owner": { "type": "string", "pattern": "^@[A-Za-z0-9-]+$" },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "version", "entrypoint", "artifact"],
+      "properties": {
+        "language": { "const": "go" },
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "entrypoint": { "const": "cmd/api" },
+        "artifact": { "enum": ["linux-container"] }
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "majorVersion", "migrationToolVersion"],
+      "properties": {
+        "engine": { "const": "postgresql" },
+        "majorVersion": { "type": "integer", "minimum": 17 },
+        "migrationToolVersion": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$" }
+      }
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+    },
+    "openapi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractId", "artifact", "digestFile", "sha256"],
+      "properties": {
+        "contractId": { "const": "dify-agent-api/v1" },
+        "artifact": { "const": "api/openapi/v1/openapi.yaml" },
+        "digestFile": { "const": "api/openapi/v1/openapi.sha256" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "passwordHash", "accessToken", "refreshToken"],
+      "properties": {
+        "strategy": { "const": "local-password" },
+        "passwordHash": { "const": "argon2id" },
+        "accessToken": { "const": "opaque-memory" },
+        "refreshToken": { "const": "opaque-secure-http-only-cookie" }
+      }
+    },
+    "dataClassifications": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["credentials", "authentication-secrets", "personal-data", "operational-metadata"] },
+      "allOf": [
+        { "contains": { "const": "credentials" } },
+        { "contains": { "const": "authentication-secrets" } },
+        { "contains": { "const": "personal-data" } }
+      ]
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verify", "serve", "migrate"],
+      "properties": {
+        "verify": { "$ref": "#/$defs/target" },
+        "serve": { "$ref": "#/$defs/target" },
+        "migrate": { "$ref": "#/$defs/target" }
+      }
+    }
+  },
+  "$defs": {
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "command"],
+      "properties": {
+        "owner": { "type": "string", "pattern": "^@[A-Za-z0-9-]+$" },
+        "command": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+title = "dify-agent-api secret detection"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Versioned negative-test programs containing synthetic detector fixtures"
+paths = [
+  '''^scripts/(hook-contract-test|secret-contract-test)\.sh$'''
+]
+
+[[rules]]
+id = "postgresql-url-with-inline-password"
+description = "PostgreSQL URL containing inline credentials"
+regex = '''(?i)postgres(?:ql)?://[a-z0-9._%+-]+:[^@$\s/<]+@'''
+keywords = ["postgres"]
+
+  [rules.allowlist]
+  description = "Exact repository paths containing isolated development or CI fixtures"
+  paths = [
+    '''^\.github/workflows/ci\.yaml$''',
+    '''^internal/platform/config/config_test\.go$''',
+    '''^test/(contract|e2e|integration)/'''
+  ]
