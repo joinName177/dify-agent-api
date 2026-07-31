@@ -7,7 +7,7 @@
   "required": [
     "DIFY_AGENT_ENVIRONMENT", "DIFY_AGENT_DATABASE_URL", "DIFY_AGENT_BOOTSTRAP_ADMIN_EMAIL",
     "DIFY_AGENT_BOOTSTRAP_ADMIN_PASSWORD", "DIFY_AGENT_CORS_ALLOWED_ORIGINS", "DIFY_AGENT_RELEASE_ID",
-    "DIFY_AGENT_BUILD_COMMIT"
+    "DIFY_AGENT_BUILD_COMMIT", "DIFY_AGENT_DEEPSEEK_API_KEY"
   ],
   "properties": {
     "DIFY_AGENT_ENVIRONMENT": { "type": "string", "enum": ["development", "test", "staging", "production"] },
@@ -15,6 +15,9 @@
     "DIFY_AGENT_DATABASE_URL": { "type": "string", "format": "uri", "pattern": "^postgres(ql)?://", "minLength": 1 },
     "DIFY_AGENT_DATABASE_MIN_CONNS": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$", "default": "2" },
     "DIFY_AGENT_DATABASE_MAX_CONNS": { "type": "string", "pattern": "^[1-9][0-9]*$", "default": "10" },
+    "DIFY_AGENT_DEEPSEEK_API_KEY": { "type": "string", "minLength": 1, "writeOnly": true },
+    "DIFY_AGENT_DEEPSEEK_BASE_URL": { "type": "string", "format": "uri", "default": "https://api.deepseek.com" },
+    "DIFY_AGENT_DEEPSEEK_MODEL": { "type": "string", "minLength": 1, "default": "deepseek-chat" },
     "DIFY_AGENT_BOOTSTRAP_ADMIN_EMAIL": { "type": "string", "format": "email" },
     "DIFY_AGENT_BOOTSTRAP_ADMIN_PASSWORD": { "type": "string", "minLength": 12, "maxLength": 128 },
     "DIFY_AGENT_ACCESS_TOKEN_TTL": { "type": "string", "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$", "default": "15m" },

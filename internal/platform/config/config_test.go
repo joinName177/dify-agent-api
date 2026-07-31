@@ -11,6 +11,7 @@ func validEnvironment() []string {
 		"DIFY_AGENT_DATABASE_URL=postgres://user:secret@localhost/db?sslmode=require",
 		"DIFY_AGENT_BOOTSTRAP_ADMIN_EMAIL=admin@example.test",
 		"DIFY_AGENT_BOOTSTRAP_ADMIN_PASSWORD=a-long-development-password",
+		"DIFY_AGENT_DEEPSEEK_API_KEY=sk-test-key",
 		"DIFY_AGENT_CORS_ALLOWED_ORIGINS=https://app.example.test",
 		"DIFY_AGENT_RELEASE_ID=r1",
 		"DIFY_AGENT_BUILD_COMMIT=abc",
@@ -34,6 +35,7 @@ func TestLoadValidDevelopmentConfig(t *testing.T) {
 		"DIFY_AGENT_DATABASE_URL=postgres://user:pass@localhost/db",
 		"DIFY_AGENT_BOOTSTRAP_ADMIN_EMAIL=admin@example.test",
 		"DIFY_AGENT_BOOTSTRAP_ADMIN_PASSWORD=a-long-development-password",
+		"DIFY_AGENT_DEEPSEEK_API_KEY=sk-dev-key",
 		"DIFY_AGENT_CORS_ALLOWED_ORIGINS=http://localhost:5173,https://app.example.com",
 		"DIFY_AGENT_RELEASE_ID=dev",
 		"DIFY_AGENT_BUILD_COMMIT=dirty",
@@ -58,6 +60,7 @@ func TestLoadRejectsInsecureProductionOrigin(t *testing.T) {
 		"DIFY_AGENT_ENVIRONMENT=production", "DIFY_AGENT_DATABASE_URL=postgres://user:secret@localhost/db?sslmode=verify-full",
 		"DIFY_AGENT_BOOTSTRAP_ADMIN_EMAIL=admin@example.test", "DIFY_AGENT_BOOTSTRAP_ADMIN_PASSWORD=a-long-development-password",
 		"DIFY_AGENT_OTEL_EXPORTER_OTLP_ENDPOINT=https://telemetry.example.test",
+		"DIFY_AGENT_DEEPSEEK_API_KEY=sk-prod-key",
 		"DIFY_AGENT_CORS_ALLOWED_ORIGINS=http://localhost:5173", "DIFY_AGENT_RELEASE_ID=r1", "DIFY_AGENT_BUILD_COMMIT=abc",
 	})
 	if err == nil {
@@ -68,6 +71,7 @@ func TestLoadRejectsInsecureProductionOrigin(t *testing.T) {
 func TestLoadRejectsInvalidBootstrapAdminCredentials(t *testing.T) {
 	base := []string{
 		"DIFY_AGENT_ENVIRONMENT=test", "DIFY_AGENT_DATABASE_URL=postgres://user:secret@localhost/db?sslmode=require",
+		"DIFY_AGENT_DEEPSEEK_API_KEY=sk-test-key",
 		"DIFY_AGENT_CORS_ALLOWED_ORIGINS=https://app.example.test", "DIFY_AGENT_RELEASE_ID=r1", "DIFY_AGENT_BUILD_COMMIT=abc",
 	}
 	tests := [][]string{

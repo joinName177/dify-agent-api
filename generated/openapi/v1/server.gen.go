@@ -42,6 +42,27 @@ func (e AuthResponseCode) Valid() bool {
 	}
 }
 
+// Defines values for ChatMessageRole.
+const (
+	ChatMessageRoleAssistant ChatMessageRole = "assistant"
+	ChatMessageRoleSystem    ChatMessageRole = "system"
+	ChatMessageRoleUser      ChatMessageRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the ChatMessageRole enum.
+func (e ChatMessageRole) Valid() bool {
+	switch e {
+	case ChatMessageRoleAssistant:
+		return true
+	case ChatMessageRoleSystem:
+		return true
+	case ChatMessageRoleUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HealthResponseCode.
 const (
 	HealthResponseCodeN200 HealthResponseCode = 200
@@ -149,16 +170,16 @@ func (e ReadinessResponseDataStatus) Valid() bool {
 
 // Defines values for UserDataRole.
 const (
-	SuperAdmin UserDataRole = "super_admin"
-	User       UserDataRole = "user"
+	UserDataRoleSuperAdmin UserDataRole = "super_admin"
+	UserDataRoleUser       UserDataRole = "user"
 )
 
 // Valid indicates whether the value is a known member of the UserDataRole enum.
 func (e UserDataRole) Valid() bool {
 	switch e {
-	case SuperAdmin:
+	case UserDataRoleSuperAdmin:
 		return true
-	case User:
+	case UserDataRoleUser:
 		return true
 	default:
 		return false
@@ -211,6 +232,21 @@ type AuthSessionData struct {
 	AccessToken string    `json:"accessToken"`
 	ExpiresAt   time.Time `json:"expiresAt"`
 	User        UserData  `json:"user"`
+}
+
+// ChatMessage defines model for ChatMessage.
+type ChatMessage struct {
+	Content string          `json:"content"`
+	Role    ChatMessageRole `json:"role"`
+}
+
+// ChatMessageRole defines model for ChatMessage.Role.
+type ChatMessageRole string
+
+// ChatRequest defines model for ChatRequest.
+type ChatRequest struct {
+	Messages []ChatMessage     `json:"messages"`
+	Tools    *[]ToolDefinition `json:"tools,omitempty"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -297,6 +333,15 @@ type RegisterRequest struct {
 	Password    *string             `json:"password,omitempty"`
 }
 
+// ToolDefinition defines model for ToolDefinition.
+type ToolDefinition struct {
+	Description string `json:"description"`
+	Name        string `json:"name"`
+
+	// Parameters JSON Schema describing the tool parameters.
+	Parameters map[string]interface{} `json:"parameters"`
+}
+
 // UserData defines model for UserData.
 type UserData struct {
 	CreatedAt   time.Time           `json:"createdAt"`
@@ -360,6 +405,9 @@ type UnsupportedMediaType = ErrorResponse
 // ValidationError defines model for ValidationError.
 type ValidationError = ErrorResponse
 
+// ChatWithAgentJSONRequestBody defines body for ChatWithAgent for application/json ContentType.
+type ChatWithAgentJSONRequestBody = ChatRequest
+
 // LoginUserJSONRequestBody defines body for LoginUser for application/json ContentType.
 type LoginUserJSONRequestBody = LoginRequest
 
@@ -368,6 +416,9 @@ type RegisterUserJSONRequestBody = RegisterRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Send a message to the agent and receive a streaming SSE response
+	// (POST /agent/chat)
+	ChatWithAgent(w http.ResponseWriter, r *http.Request)
 	// Authenticate a local user and create a session
 	// (POST /auth/login)
 	LoginUser(w http.ResponseWriter, r *http.Request)
@@ -397,6 +448,12 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// Send a message to the agent and receive a streaming SSE response
+// (POST /agent/chat)
+func (_ Unimplemented) ChatWithAgent(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // Authenticate a local user and create a session
 // (POST /auth/login)
@@ -454,6 +511,26 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ChatWithAgent operation middleware
+func (siw *ServerInterfaceWrapper) ChatWithAgent(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChatWithAgent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // LoginUser operation middleware
 func (siw *ServerInterfaceWrapper) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -687,6 +764,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/agent/chat", wrapper.ChatWithAgent)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/login", wrapper.LoginUser)
 	})
 	r.Group(func(r chi.Router) {
@@ -717,37 +797,42 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"BgAA///ra40VMjAAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

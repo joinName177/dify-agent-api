@@ -28,7 +28,7 @@ func testConfig() config.Config {
 }
 
 func TestOperationalEndpoints(t *testing.T) {
-	handler := New(testConfig(), fakeReadiness{}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil)
+	handler := New(testConfig(), fakeReadiness{}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil, nil)
 	for _, test := range []struct{ path, code, body string }{
 		{"/api/v1/livez", `"code":200`, `"status":"ok"`},
 		{"/api/v1/readyz", `"code":200`, `"database":"ok"`},
@@ -53,7 +53,7 @@ func TestOperationalEndpoints(t *testing.T) {
 }
 
 func TestUnknownRoutesAndMethodsUseStandardErrors(t *testing.T) {
-	handler := New(testConfig(), fakeReadiness{}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil)
+	handler := New(testConfig(), fakeReadiness{}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil, nil)
 	for _, test := range []struct {
 		method, path, code string
 		status             int
@@ -70,7 +70,7 @@ func TestUnknownRoutesAndMethodsUseStandardErrors(t *testing.T) {
 }
 
 func TestReadinessDoesNotLeakDependencyError(t *testing.T) {
-	handler := New(testConfig(), fakeReadiness{pingErr: errors.New("password for database secret-value")}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil)
+	handler := New(testConfig(), fakeReadiness{pingErr: errors.New("password for database secret-value")}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil, nil)
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/api/v1/readyz", nil))
 	if res.Code != http.StatusServiceUnavailable {
@@ -85,7 +85,7 @@ func TestReadinessDoesNotLeakDependencyError(t *testing.T) {
 }
 
 func TestCORSAllowlist(t *testing.T) {
-	handler := New(testConfig(), fakeReadiness{}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil)
+	handler := New(testConfig(), fakeReadiness{}, slog.New(slog.NewTextHandler(io.Discard, nil)), strings.Repeat("a", 64), nil, nil, nil)
 	for _, test := range []struct{ origin, expected string }{{"https://app.example.com", "https://app.example.com"}, {"https://evil.example.com", ""}} {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/livez", nil)
 		req.Header.Set("Origin", test.origin)

@@ -9,6 +9,9 @@ import (
 	"syscall"
 
 	openapiv1 "github.com/joinname177/dify-agent-api/generated/openapi/v1"
+	agentusecases "github.com/joinname177/dify-agent-api/internal/modules/agent/application/usecases"
+	openaiagent "github.com/joinname177/dify-agent-api/internal/modules/agent/infrastructure/openai"
+	agenthttp "github.com/joinname177/dify-agent-api/internal/modules/agent/transport/http"
 	"github.com/joinname177/dify-agent-api/internal/modules/user/application/usecases"
 	"github.com/joinname177/dify-agent-api/internal/modules/user/infrastructure/credentials"
 	userpostgres "github.com/joinname177/dify-agent-api/internal/modules/user/infrastructure/postgres"
@@ -58,6 +61,11 @@ func main() {
 		cookiePolicy = userhttp.InsecureCookiesForLocalDevelopment
 	}
 	userHandler := userhttp.NewHandler(userService, logger, cfg.CORSAllowedOrigins, cookiePolicy)
+
+	llmGateway := openaiagent.NewLLMGateway(cfg.DeepSeekAPIKey, cfg.DeepSeekBaseURL, cfg.DeepSeekModel)
+	chatUseCase := agentusecases.NewChatUseCase(llmGateway)
+	agentHandler := agenthttp.NewHandler(chatUseCase, logger)
+
 	shutdownTracing, err := observability.SetupTracing(rootCtx, cfg.OTLPTraceEndpoint, cfg.ReleaseID)
 	if err != nil {
 		logger.Error("telemetry initialization failed", "error", err)
@@ -71,7 +79,7 @@ func main() {
 		}
 	}()
 
-	server := &http.Server{Addr: cfg.HTTPAddress, Handler: httpserver.New(cfg, db, logger, openapiv1.ContractSHA256, userHandler, userService), ReadHeaderTimeout: cfg.HTTPReadTimeout, ReadTimeout: cfg.HTTPReadTimeout, WriteTimeout: cfg.HTTPWriteTimeout, IdleTimeout: cfg.HTTPIdleTimeout}
+	server := &http.Server{Addr: cfg.HTTPAddress, Handler: httpserver.New(cfg, db, logger, openapiv1.ContractSHA256, userHandler, agentHandler, userService), ReadHeaderTimeout: cfg.HTTPReadTimeout, ReadTimeout: cfg.HTTPReadTimeout, WriteTimeout: cfg.HTTPWriteTimeout, IdleTimeout: cfg.HTTPIdleTimeout}
 	go func() {
 		logger.Info("api listening", "address", cfg.HTTPAddress, "release_id", cfg.ReleaseID)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

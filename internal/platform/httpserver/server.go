@@ -28,13 +28,18 @@ type userHandler interface {
 	GetCurrentUser(http.ResponseWriter, *http.Request)
 }
 
+type agentHandler interface {
+	ChatWithAgent(http.ResponseWriter, *http.Request)
+}
+
 type Handler struct {
 	db                             readinessChecker
 	user                           userHandler
+	agent                          agentHandler
 	releaseID, buildCommit, digest string
 }
 
-func New(cfg config.Config, db readinessChecker, logger *slog.Logger, digest string, user userHandler, authenticator platformauth.Authenticator) http.Handler {
+func New(cfg config.Config, db readinessChecker, logger *slog.Logger, digest string, user userHandler, agent agentHandler, authenticator platformauth.Authenticator) http.Handler {
 	router := chi.NewRouter()
 	router.Use(platformhttp.RequestID)
 	router.Use(platformhttp.Recover(logger))
@@ -47,7 +52,7 @@ func New(cfg config.Config, db readinessChecker, logger *slog.Logger, digest str
 	router.Use(chimiddleware.Timeout(cfg.RequestTimeout))
 	router.Use(platformhttp.RateLimit(cfg.RateLimitRPS, cfg.RateLimitBurst))
 	router.Use(platformauth.OptionalMiddleware(authenticator))
-	implementation := &Handler{db: db, user: user, releaseID: cfg.ReleaseID, buildCommit: cfg.BuildCommit, digest: digest}
+	implementation := &Handler{db: db, user: user, agent: agent, releaseID: cfg.ReleaseID, buildCommit: cfg.BuildCommit, digest: digest}
 	apiRouter := chi.NewRouter()
 	apiRouter.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		platformhttp.WriteError(w, r, http.StatusNotFound, "ROUTE_NOT_FOUND", "The requested route does not exist.")
@@ -60,6 +65,7 @@ func New(cfg config.Config, db readinessChecker, logger *slog.Logger, digest str
 	return router
 }
 
+func (h *Handler) ChatWithAgent(w http.ResponseWriter, r *http.Request)  { h.agent.ChatWithAgent(w, r) }
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request)   { h.user.RegisterUser(w, r) }
 func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request)      { h.user.LoginUser(w, r) }
 func (h *Handler) RefreshSession(w http.ResponseWriter, r *http.Request) { h.user.RefreshSession(w, r) }

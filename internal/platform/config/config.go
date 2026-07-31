@@ -24,6 +24,9 @@ type Config struct {
 	BootstrapAdminEmail    string
 	BootstrapAdminPassword string
 	OTLPTraceEndpoint      string
+	DeepSeekAPIKey         string
+	DeepSeekBaseURL        string
+	DeepSeekModel          string
 	CORSAllowedOrigins     []string
 	ReleaseID              string
 	BuildCommit            string
@@ -45,7 +48,9 @@ var allowed = map[string]struct{}{
 	"DIFY_AGENT_DATABASE_MAX_CONNS": {}, "DIFY_AGENT_CORS_ALLOWED_ORIGINS": {},
 	"DIFY_AGENT_BOOTSTRAP_ADMIN_EMAIL": {}, "DIFY_AGENT_BOOTSTRAP_ADMIN_PASSWORD": {},
 	"DIFY_AGENT_OTEL_EXPORTER_OTLP_ENDPOINT": {},
-	"DIFY_AGENT_RELEASE_ID":                  {}, "DIFY_AGENT_BUILD_COMMIT": {},
+	"DIFY_AGENT_DEEPSEEK_API_KEY":            {}, "DIFY_AGENT_DEEPSEEK_BASE_URL": {},
+	"DIFY_AGENT_DEEPSEEK_MODEL": {},
+	"DIFY_AGENT_RELEASE_ID":     {}, "DIFY_AGENT_BUILD_COMMIT": {},
 	"DIFY_AGENT_HTTP_READ_TIMEOUT": {}, "DIFY_AGENT_HTTP_WRITE_TIMEOUT": {},
 	"DIFY_AGENT_HTTP_IDLE_TIMEOUT": {}, "DIFY_AGENT_HTTP_SHUTDOWN_TIMEOUT": {},
 	"DIFY_AGENT_REQUEST_TIMEOUT": {}, "DIFY_AGENT_REQUEST_BODY_LIMIT": {},
@@ -190,6 +195,17 @@ func load(environ []string) (Config, error) {
 	}
 	if cfg.RefreshTokenTTL, err = time.ParseDuration(withDefault("DIFY_AGENT_REFRESH_TOKEN_TTL", "168h")); err != nil || cfg.RefreshTokenTTL <= cfg.AccessTokenTTL {
 		return Config{}, errors.New("DIFY_AGENT_REFRESH_TOKEN_TTL must be greater than the access token TTL")
+	}
+	if cfg.DeepSeekAPIKey, err = required("DIFY_AGENT_DEEPSEEK_API_KEY"); err != nil {
+		return Config{}, err
+	}
+	cfg.DeepSeekBaseURL = withDefault("DIFY_AGENT_DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+	if err := validateHTTPSURL(cfg.DeepSeekBaseURL, cfg.Environment == "development"); err != nil {
+		return Config{}, fmt.Errorf("DIFY_AGENT_DEEPSEEK_BASE_URL: %w", err)
+	}
+	cfg.DeepSeekModel = withDefault("DIFY_AGENT_DEEPSEEK_MODEL", "deepseek-chat")
+	if cfg.DeepSeekModel == "" {
+		return Config{}, errors.New("DIFY_AGENT_DEEPSEEK_MODEL must not be empty")
 	}
 	return cfg, nil
 }

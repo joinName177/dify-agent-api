@@ -123,7 +123,7 @@ func newHandler(service userService, databaseErr error, bodyLimit int64, rps flo
 		ReleaseID:          "test", BuildCommit: "abc", RequestTimeout: time.Second,
 		RequestBodyLimit: bodyLimit, RateLimitRPS: rps, RateLimitBurst: burst,
 	}
-	return httpserver.New(cfg, readiness{err: databaseErr}, logger, strings.Repeat("a", 64), userHandler, nil)
+	return httpserver.New(cfg, readiness{err: databaseErr}, logger, strings.Repeat("a", 64), userHandler, nil, nil)
 }
 
 func contractSession() usecases.AuthSession {

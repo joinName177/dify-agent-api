@@ -47,7 +47,7 @@ func TestValidateRepositoryRejectsDigestAndModuleDrift(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	content = []byte(strings.Replace(string(content), "49184e9d62e836a155fd2f6ed555107cfdb657f8f2dd5a7dd6dc7cd36b56ae2d", strings.Repeat("0", 64), 1))
+	content = []byte(strings.Replace(string(content), "f2600bf399e8de1cf8b54bc5b211cdf471284461950a1f51a93aeea9befcd571", strings.Repeat("0", 64), 1))
 	if err := os.WriteFile(profilePath, content, 0o600); err != nil {
 		t.Fatal(err)
 	}
