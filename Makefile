@@ -15,7 +15,7 @@ GO_RUNNER ?= docker run --rm -e COMMIT_TITLE -e COMMIT_MESSAGE_FILE -v "$(CURDIR
 RACE_RUNNER ?= docker run --rm -v "$(CURDIR):/src" -w /src $(RACE_GO_IMAGE)
 IMAGE_TAG ?= dify-agent-api:dev
 
-.PHONY: governance-check ci-governance-check toolchain-check profile-check config-check architecture-check migration-version migration-manifest-check database-test-prepare http-contract-test prepare generate digest tidy fmt format-check mod-check generated-check build-contract-test commit-policy commit-policy-test staged-check hook-contract-test install-hooks secret-check secret-contract-test gosec license-report source-security-check container-security-check test race unit-race-test integration-test e2e-test vet staticcheck govulncheck static-analysis build container-build verify verify-steps check e2e migration-check migrate-up migrate-down db-up db-down
+.PHONY: governance-check ci-governance-check toolchain-check profile-check config-check architecture-check migration-version migration-manifest-check database-test-prepare http-contract-test prepare generate digest tidy fmt format-check mod-check generated-check build-contract-test commit-policy commit-policy-test staged-check hook-contract-test install-hooks secret-check secret-contract-test gosec license-report source-security-check container-security-check test race unit-race-test integration-test e2e-test vet staticcheck govulncheck static-analysis build container-build verify verify-steps check e2e migration-check dev-up migrate-up migrate-down db-up db-down
 
 governance-check:
 	$(GO_RUNNER) go test ./tools/governancecheck
@@ -173,6 +173,9 @@ verify-steps:
 check: verify
 
 e2e: e2e-test
+
+dev-up:
+	./scripts/dev-up.sh
 
 db-up:
 	docker compose --env-file .env.local up -d --wait postgres
