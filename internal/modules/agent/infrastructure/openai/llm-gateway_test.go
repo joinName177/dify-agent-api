@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/joinname177/dify-agent-api/internal/modules/agent/application/ports"
@@ -93,6 +94,67 @@ func TestChatStreamYieldsErrorEventOnNonOKStatus(t *testing.T) {
 	}
 }
 
+func TestChatStreamSendsDoneOnFinishReason(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, `data: {"choices":[{"delta":{"content":"Hello"},"finish_reason":"stop"}]}
+
+data: [DONE]
+
+`)
+	}))
+	defer server.Close()
+
+	gateway := NewLLMGateway("sk-test", server.URL, "deepseek-chat")
+	events, errs := gateway.ChatStream(context.Background(), ports.ChatStreamRequest{
+		Messages: []ports.ChatMessage{{Role: "user", Content: "Hi"}},
+	})
+
+	got, streamErr := collect(events, errs)
+	if streamErr != nil {
+		t.Fatalf("unexpected stream error: %v", streamErr)
+	}
+
+	want := []ports.StreamEvent{
+		{Type: "text_delta", Content: "Hello"},
+		{Type: "done"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("events = %+v, want %+v", got, want)
+	}
+}
+
+func TestChatStreamSendsDoneOnEmptyContent(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, `data: {"choices":[{"finish_reason":"stop"}]}
+
+data: [DONE]
+
+`)
+	}))
+	defer server.Close()
+
+	gateway := NewLLMGateway("sk-test", server.URL, "deepseek-chat")
+	events, errs := gateway.ChatStream(context.Background(), ports.ChatStreamRequest{
+		Messages: []ports.ChatMessage{{Role: "user", Content: "Hi"}},
+	})
+
+	got, streamErr := collect(events, errs)
+	if streamErr != nil {
+		t.Fatalf("unexpected stream error: %v", streamErr)
+	}
+
+	want := []ports.StreamEvent{
+		{Type: "done"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("events = %+v, want %+v", got, want)
+	}
+}
+
 func TestChatStreamSkipsUnparseableSSEChunks(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -116,5 +178,75 @@ func TestChatStreamSkipsUnparseableSSEChunks(t *testing.T) {
 	want := []ports.StreamEvent{{Type: "text_delta", Content: "OK"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("events = %+v, want %+v", got, want)
+	}
+}
+
+func TestChatStreamOverridesModelFromRequest(t *testing.T) {
+	t.Parallel()
+	var gotBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, `data: {"choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}
+
+data: [DONE]
+
+`)
+	}))
+	defer server.Close()
+
+	gateway := NewLLMGateway("sk-test", server.URL, "deepseek-v4-flash")
+	events, errs := gateway.ChatStream(context.Background(), ports.ChatStreamRequest{
+		Messages: []ports.ChatMessage{{Role: "user", Content: "Hi"}},
+		Model:    "deepseek-v4-pro",
+	})
+
+	_, streamErr := collect(events, errs)
+	if streamErr != nil {
+		t.Fatalf("unexpected stream error: %v", streamErr)
+	}
+
+	if gotBody["model"] != "deepseek-v4-pro" {
+		t.Errorf("model = %q, want deepseek-v4-pro", gotBody["model"])
+	}
+}
+
+func TestChatStreamInjectsSearchResults(t *testing.T) {
+	t.Parallel()
+	var gotBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, `data: {"choices":[{"delta":{"content":"Based on search results..."},"finish_reason":"stop"}]}
+
+data: [DONE]
+
+`)
+	}))
+	defer server.Close()
+
+	gateway := NewLLMGateway("sk-test", server.URL, "deepseek-v4-flash")
+	events, errs := gateway.ChatStream(context.Background(), ports.ChatStreamRequest{
+		Messages:      []ports.ChatMessage{{Role: "user", Content: "What is new?"}},
+		SearchResults: "1. News\n   Latest updates\n   https://example.com",
+	})
+
+	_, streamErr := collect(events, errs)
+	if streamErr != nil {
+		t.Fatalf("unexpected stream error: %v", streamErr)
+	}
+
+	messages, ok := gotBody["messages"].([]any)
+	if !ok || len(messages) < 2 {
+		t.Fatalf("expected at least 2 messages, got %v", messages)
+	}
+	first, ok := messages[0].(map[string]any)
+	if !ok || first["role"] != "system" {
+		t.Errorf("first message should be system with search results, got %v", first)
+	}
+	if s, ok := first["content"].(string); !ok || !strings.Contains(s, "News") {
+		t.Errorf("system message should contain search results, got %q", s)
 	}
 }

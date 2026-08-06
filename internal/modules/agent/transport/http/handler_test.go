@@ -11,6 +11,7 @@ import (
 
 	"github.com/joinname177/dify-agent-api/internal/modules/agent/application/ports"
 	"github.com/joinname177/dify-agent-api/internal/modules/agent/application/usecases"
+	"github.com/joinname177/dify-agent-api/internal/modules/agent/infrastructure/search"
 	platformauth "github.com/joinname177/dify-agent-api/internal/platform/auth"
 )
 
@@ -37,10 +38,10 @@ func (fakeAuthenticator) Authenticate(_ context.Context, _ string) (platformauth
 	return platformauth.Identity{PublicID: "u_test", Email: "person@example.test"}, nil
 }
 
-func newAuthedHandler(events []ports.StreamEvent) http.Handler {
+func newAuthedHandler(events []ports.StreamEvent, searchGateway search.Gateway) http.Handler {
 	gateway := &fakeGateway{events: events}
 	usecase := usecases.NewChatUseCase(gateway)
-	handler := NewHandler(usecase, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	handler := NewHandler(usecase, slog.New(slog.NewTextHandler(io.Discard, nil)), searchGateway)
 	return platformauth.OptionalMiddleware(fakeAuthenticator{})(chatRouter{handler: handler})
 }
 
@@ -62,7 +63,7 @@ func authedRequest(t *testing.T, method, path, body string) *http.Request {
 
 func TestChatWithAgentRequiresAuthentication(t *testing.T) {
 	t.Parallel()
-	handler := newAuthedHandler(nil)
+	handler := newAuthedHandler(nil, nil)
 	res := httptest.NewRecorder()
 
 	handler.ServeHTTP(res, httptest.NewRequest(http.MethodPost, "/api/v1/agent/chat", strings.NewReader(`{"messages":[{"role":"user","content":"Hi"}]}`)))
@@ -74,7 +75,7 @@ func TestChatWithAgentRequiresAuthentication(t *testing.T) {
 
 func TestChatWithAgentRejectsMalformedBody(t *testing.T) {
 	t.Parallel()
-	handler := newAuthedHandler(nil)
+	handler := newAuthedHandler(nil, nil)
 	res := httptest.NewRecorder()
 
 	handler.ServeHTTP(res, authedRequest(t, http.MethodPost, "/api/v1/agent/chat", "{not json"))
@@ -86,7 +87,7 @@ func TestChatWithAgentRejectsMalformedBody(t *testing.T) {
 
 func TestChatWithAgentRejectsEmptyMessages(t *testing.T) {
 	t.Parallel()
-	handler := newAuthedHandler(nil)
+	handler := newAuthedHandler(nil, nil)
 	res := httptest.NewRecorder()
 
 	handler.ServeHTTP(res, authedRequest(t, http.MethodPost, "/api/v1/agent/chat", `{"messages":[]}`))
@@ -101,7 +102,7 @@ func TestChatWithAgentStreamsSSEEvents(t *testing.T) {
 	handler := newAuthedHandler([]ports.StreamEvent{
 		{Type: "text_delta", Content: "Hello"},
 		{Type: "done", Usage: &ports.UsageInfo{PromptTokens: 10, CompletionTokens: 5}},
-	})
+	}, nil)
 	res := httptest.NewRecorder()
 
 	handler.ServeHTTP(res, authedRequest(t, http.MethodPost, "/api/v1/agent/chat", `{"messages":[{"role":"user","content":"Hi"}]}`))

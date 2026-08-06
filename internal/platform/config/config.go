@@ -203,7 +203,7 @@ func load(environ []string) (Config, error) {
 	if err := validateHTTPSURL(cfg.DeepSeekBaseURL, cfg.Environment == "development"); err != nil {
 		return Config{}, fmt.Errorf("DIFY_AGENT_DEEPSEEK_BASE_URL: %w", err)
 	}
-	cfg.DeepSeekModel = withDefault("DIFY_AGENT_DEEPSEEK_MODEL", "deepseek-chat")
+	cfg.DeepSeekModel = withDefault("DIFY_AGENT_DEEPSEEK_MODEL", "deepseek-v4-flash")
 	if cfg.DeepSeekModel == "" {
 		return Config{}, errors.New("DIFY_AGENT_DEEPSEEK_MODEL must not be empty")
 	}
@@ -241,10 +241,21 @@ func validateHTTPSURL(raw string, allowLocalHTTP bool) error {
 	if u.Scheme == "https" {
 		return nil
 	}
-	if allowLocalHTTP && u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1") {
+	if allowLocalHTTP && u.Scheme == "http" && isLocalOrPrivateHost(u.Hostname()) {
 		return nil
 	}
-	return errors.New("must use HTTPS (HTTP is allowed only for localhost in development)")
+	return errors.New("must use HTTPS (HTTP is allowed only for localhost and private IPs in development)")
+}
+
+func isLocalOrPrivateHost(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback() || ip.IsPrivate()
 }
 
 func parseInt32(value string) (int32, error) {

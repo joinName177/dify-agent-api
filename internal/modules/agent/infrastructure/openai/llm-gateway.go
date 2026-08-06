@@ -80,8 +80,22 @@ func (g *LLMGateway) stream(ctx context.Context, req ports.ChatStreamRequest, ev
 		messages = append(messages, openaiChatMessage{Role: msg.Role, Content: msg.Content})
 	}
 
+	model := g.model
+	if req.Model != "" {
+		model = req.Model
+	}
+
+	// Inject search results as a system message when provided.
+	if req.SearchResults != "" {
+		searchSystem := openaiChatMessage{
+			Role:    "system",
+			Content: "以下是与用户问题相关的网络搜索结果，请基于这些信息回答：\n\n" + req.SearchResults,
+		}
+		messages = append([]openaiChatMessage{searchSystem}, messages...)
+	}
+
 	body := openaiChatRequest{
-		Model:    g.model,
+		Model:    model,
 		Messages: messages,
 		Stream:   true,
 	}
@@ -117,6 +131,9 @@ func (g *LLMGateway) stream(ctx context.Context, req ports.ChatStreamRequest, ev
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
+	var sentDone, sentContent bool
+	var modelFinished bool
+
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
@@ -143,14 +160,25 @@ func (g *LLMGateway) stream(ctx context.Context, req ports.ChatStreamRequest, ev
 					CompletionTokens: chunk.Usage.CompletionTokens,
 				},
 			}
+			sentDone = true
 			continue
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Delta.Content != nil && *choice.Delta.Content != "" {
 				events <- ports.StreamEvent{Type: "text_delta", Content: *choice.Delta.Content}
+				sentContent = true
+			}
+			if choice.FinishReason != nil {
+				modelFinished = true
 			}
 		}
 	}
+
+	if !sentDone && modelFinished {
+		events <- ports.StreamEvent{Type: "done"}
+	}
+	_ = sentContent // reserved for future diagnostics
+
 	if err := scanner.Err(); err != nil && !errors.Is(err, context.Canceled) {
 		events <- ports.StreamEvent{Type: "error", Content: "Stream read failed."}
 		return fmt.Errorf("scan sse stream: %w", err)

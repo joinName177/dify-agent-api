@@ -536,10 +536,16 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/ChatMessage"
+        model:
+          type: string
+          minLength: 1
         tools:
           type: array
           items:
             $ref: "#/components/schemas/ToolDefinition"
+        web_search:
+          type: boolean
+          default: false
     VersionResponse:
       type: object
       additionalProperties: false

@@ -30,8 +30,11 @@ type StreamEvent struct {
 
 // ChatStreamRequest bundles the inputs for a streaming chat completion call.
 type ChatStreamRequest struct {
-	Messages []ChatMessage
-	Tools    []ToolDefinition
+	Messages      []ChatMessage
+	Model         string
+	SearchResults string
+	Tools         []ToolDefinition
+	WebSearch     bool
 }
 
 // LLMGateway is the port for an OpenAI-compatible streaming chat API.

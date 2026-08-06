@@ -11,6 +11,7 @@ import (
 	openapiv1 "github.com/joinname177/dify-agent-api/generated/openapi/v1"
 	agentusecases "github.com/joinname177/dify-agent-api/internal/modules/agent/application/usecases"
 	openaiagent "github.com/joinname177/dify-agent-api/internal/modules/agent/infrastructure/openai"
+	"github.com/joinname177/dify-agent-api/internal/modules/agent/infrastructure/search"
 	agenthttp "github.com/joinname177/dify-agent-api/internal/modules/agent/transport/http"
 	"github.com/joinname177/dify-agent-api/internal/modules/user/application/usecases"
 	"github.com/joinname177/dify-agent-api/internal/modules/user/infrastructure/credentials"
@@ -64,7 +65,8 @@ func main() {
 
 	llmGateway := openaiagent.NewLLMGateway(cfg.DeepSeekAPIKey, cfg.DeepSeekBaseURL, cfg.DeepSeekModel)
 	chatUseCase := agentusecases.NewChatUseCase(llmGateway)
-	agentHandler := agenthttp.NewHandler(chatUseCase, logger)
+	searchGateway := search.NewDuckDuckGoGateway()
+	agentHandler := agenthttp.NewHandler(chatUseCase, logger, searchGateway)
 
 	shutdownTracing, err := observability.SetupTracing(rootCtx, cfg.OTLPTraceEndpoint, cfg.ReleaseID)
 	if err != nil {
