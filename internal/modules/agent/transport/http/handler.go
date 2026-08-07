@@ -93,7 +93,9 @@ func (h *Handler) ChatWithAgent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
 
+	eventCount := 0
 	for event := range events {
+		eventCount++
 		select {
 		case <-r.Context().Done():
 			return
@@ -108,6 +110,16 @@ func (h *Handler) ChatWithAgent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		flusher.Flush()
+	}
+
+	// Ensure the stream always terminates with a done event, even when the
+	// underlying gateway produced no events (e.g. LLM returned an empty response).
+	if eventCount == 0 {
+		buf, err := json.Marshal(ports.StreamEvent{Type: "done"})
+		if err == nil {
+			fmt.Fprintf(w, "data: %s\n\n", buf)
+			flusher.Flush()
+		}
 	}
 
 	select {

@@ -175,7 +175,7 @@ func TestChatStreamSkipsUnparseableSSEChunks(t *testing.T) {
 		t.Fatalf("unexpected stream error: %v", streamErr)
 	}
 
-	want := []ports.StreamEvent{{Type: "text_delta", Content: "OK"}}
+	want := []ports.StreamEvent{{Type: "text_delta", Content: "OK"}, {Type: "done"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("events = %+v, want %+v", got, want)
 	}

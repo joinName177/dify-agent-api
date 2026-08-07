@@ -131,8 +131,7 @@ func (g *LLMGateway) stream(ctx context.Context, req ports.ChatStreamRequest, ev
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
-	var sentDone, sentContent bool
-	var modelFinished bool
+	var sentDone bool
 
 	for scanner.Scan() {
 		select {
@@ -166,22 +165,16 @@ func (g *LLMGateway) stream(ctx context.Context, req ports.ChatStreamRequest, ev
 		for _, choice := range chunk.Choices {
 			if choice.Delta.Content != nil && *choice.Delta.Content != "" {
 				events <- ports.StreamEvent{Type: "text_delta", Content: *choice.Delta.Content}
-				sentContent = true
-			}
-			if choice.FinishReason != nil {
-				modelFinished = true
 			}
 		}
 	}
 
-	if !sentDone && modelFinished {
-		events <- ports.StreamEvent{Type: "done"}
-	}
-	_ = sentContent // reserved for future diagnostics
-
 	if err := scanner.Err(); err != nil && !errors.Is(err, context.Canceled) {
 		events <- ports.StreamEvent{Type: "error", Content: "Stream read failed."}
 		return fmt.Errorf("scan sse stream: %w", err)
+	}
+	if !sentDone {
+		events <- ports.StreamEvent{Type: "done"}
 	}
 	return nil
 }
